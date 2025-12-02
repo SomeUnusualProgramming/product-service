@@ -1,10 +1,13 @@
-package com.example.productservice.service;
+package com.example.productservice;
 
 import com.example.productservice.model.Product;
 import com.example.productservice.repository.ProductRepository;
+import com.example.productservice.service.ProductService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.util.Arrays;
 import java.util.List;
@@ -15,39 +18,62 @@ import static org.mockito.Mockito.*;
 
 class ProductServiceTest {
 
-    private ProductRepository repository;
-    private ProductService service;
+    @Mock
+    private ProductRepository productRepository;
+
+    @InjectMocks
+    private ProductService productService;
 
     @BeforeEach
     void setUp() {
-        repository = Mockito.mock(ProductRepository.class);
-        service = new ProductService(repository);
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
     void testGetAllProducts() {
-        Product p1 = new Product("Test1", "Desc1", "Cat1", 10.0, 5);
-        Product p2 = new Product("Test2", "Desc2", "Cat2", 20.0, 3);
-        when(repository.findAll()).thenReturn(Arrays.asList(p1, p2));
+        List<Product> mockProducts = Arrays.asList(new Product("Apple", 1.0), new Product("Banana", 2.0));
+        when(productRepository.findAll()).thenReturn(mockProducts);
 
-        List<Product> products = service.getAllProducts();
+        List<Product> products = productService.getAllProducts();
         assertEquals(2, products.size());
-        verify(repository, times(1)).findAll();
+        verify(productRepository, times(1)).findAll();
     }
 
     @Test
     void testCreateProduct() {
-        Product p = new Product("Test", "Desc", "Cat", 15.0, 7);
-        when(repository.save(p)).thenReturn(p);
+        Product productToCreate = new Product("Orange", 3.0);
+        Product savedProduct = new Product("Orange", 3.0);
+        savedProduct.setId(1L);
 
-        Product created = service.createProduct(p);
-        assertEquals("Test", created.getName());
-        verify(repository, times(1)).save(p);
+        when(productRepository.save(any(Product.class))).thenReturn(savedProduct);
+
+        Product result = productService.createProduct(productToCreate);
+        System.out.println("DEBUG: result = " + result);
+
+        assertEquals("Orange", result.getName());
+        assertEquals(3.0, result.getPrice());
+        assertEquals(1L, result.getId());
     }
 
     @Test
-    void testGetProductByIdNotFound() {
-        when(repository.findById(1L)).thenReturn(Optional.empty());
-        assertNull(service.getProductById(1L));
+    void testGetProductById() {
+        Product product = new Product("Apple", 1.0);
+        product.setId(1L);
+
+        when(productRepository.findById(anyLong())).thenReturn(Optional.of(product));
+
+        Product result = productService.getProductById(1L);
+        System.out.println("DEBUG: result = " + result);
+
+        assertEquals("Apple", result.getName());
+        assertEquals(1.0, result.getPrice());
+        assertEquals(1L, result.getId());
+    }
+
+    @Test
+    void testDeleteProduct() {
+        doNothing().when(productRepository).deleteById(1L);
+        productService.deleteProduct(1L);
+        verify(productRepository, times(1)).deleteById(1L);
     }
 }
