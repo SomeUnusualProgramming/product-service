@@ -11,20 +11,21 @@ A simple Spring Boot project with PostgreSQL and Kafka.
 ```bash
 docker-compose up --build
 ```
+
 This will start:
-PostgreSQL on port 5432
-Kafka on port 9092
-Zookeeper on port 2181
-Spring Boot app on port 8080
+- PostgreSQL on port 5432
+- Kafka on port 9092
+- Zookeeper on port 2181
+- Spring Boot app on port 8080
 
 Application Properties Configured via environment variables in Docker Compose:
-SPRING_DATASOURCE_URL
-SPRING_DATASOURCE_USERNAME
-SPRING_DATASOURCE_PASSWORD
-SPRING_KAFKA_BOOTSTRAP_SERVERS
+- SPRING_DATASOURCE_URL
+- SPRING_DATASOURCE_USERNAME
+- SPRING_DATASOURCE_PASSWORD
+- SPRING_KAFKA_BOOTSTRAP_SERVERS
 
 Endpoints
-GET /products – list all products
-GET /products/{id} – get product by ID
-POST /products – create product
-DELETE /products/{id} – delete product
+- GET /products – list all products
+- GET /products/{id} – get product by ID
+- POST /products – create product
+- DELETE /products/{id} – delete product
