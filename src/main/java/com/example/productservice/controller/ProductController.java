@@ -34,10 +34,22 @@ public class ProductController {
         }
     }
 
+    @GetMapping("/test")
+    public String test() {
+        return "Controller OK";
+    }
+
+
     // POST /api/products - tworzy nowy produkt
     @PostMapping
     public Product createProduct(@RequestBody Product product) {
         return productService.createProduct(product);
+    }
+
+    // ProductController.java
+    @GetMapping("/{id}/history")
+    public List<Product> getProductHistory(@PathVariable Long id) {
+        return productService.getProductHistory(id);
     }
 
     // PUT /api/products/{id} - aktualizuje produkt

@@ -1,12 +1,13 @@
 package com.example.productservice;
 
+import com.example.productservice.kafka.ProductProducer;
 import com.example.productservice.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -15,9 +16,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@ActiveProfiles("test") // używa application-test.properties
+@ActiveProfiles("test")
 @AutoConfigureMockMvc
-@EnableAutoConfiguration(exclude = {org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration.class,})
 class ProductControllerIntegrationTest {
 
     @Autowired
@@ -26,14 +26,16 @@ class ProductControllerIntegrationTest {
     @Autowired
     private ProductRepository productRepository;
 
+    @MockBean
+    private ProductProducer productProducer;
+
     @BeforeEach
     void setUp() {
-        productRepository.deleteAll(); // czyszczenie bazy przed każdym testem
+        productRepository.deleteAll();
     }
 
     @Test
     void testCreateAndGetProducts() throws Exception {
-        // Tworzenie produktu
         String productJson = """
                     {
                         "name": "Apple",
@@ -44,9 +46,13 @@ class ProductControllerIntegrationTest {
                     }
                 """;
 
-        mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content(productJson)).andExpect(status().isOk());
+        mockMvc.perform(post("/api/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(productJson))
+                .andExpect(status().isOk());
 
-        // Sprawdzenie pobrania produktów
-        mockMvc.perform(get("/api/products")).andExpect(status().isOk()).andExpect(jsonPath("$[0].name").value("Apple"));
+        mockMvc.perform(get("/api/products"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Apple"));
     }
 }

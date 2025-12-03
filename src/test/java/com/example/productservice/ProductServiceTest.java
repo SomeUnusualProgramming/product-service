@@ -1,5 +1,6 @@
 package com.example.productservice;
 
+import com.example.productservice.kafka.ProductProducer;
 import com.example.productservice.model.Product;
 import com.example.productservice.repository.ProductRepository;
 import com.example.productservice.service.ProductService;
@@ -21,6 +22,9 @@ class ProductServiceTest {
     @Mock
     private ProductRepository productRepository;
 
+    @Mock
+    private ProductProducer productProducer;
+
     @InjectMocks
     private ProductService productService;
 
@@ -31,10 +35,14 @@ class ProductServiceTest {
 
     @Test
     void testGetAllProducts() {
-        List<Product> mockProducts = Arrays.asList(new Product("Apple", 1.0), new Product("Banana", 2.0));
+        List<Product> mockProducts = Arrays.asList(
+                new Product("Apple", 1.0),
+                new Product("Banana", 2.0)
+        );
         when(productRepository.findAll()).thenReturn(mockProducts);
 
         List<Product> products = productService.getAllProducts();
+
         assertEquals(2, products.size());
         verify(productRepository, times(1)).findAll();
     }
@@ -48,11 +56,12 @@ class ProductServiceTest {
         when(productRepository.save(any(Product.class))).thenReturn(savedProduct);
 
         Product result = productService.createProduct(productToCreate);
-        System.out.println("DEBUG: result = " + result);
 
         assertEquals("Orange", result.getName());
         assertEquals(3.0, result.getPrice());
         assertEquals(1L, result.getId());
+
+        verify(productProducer, times(1)).sendMessage(any(Product.class));
     }
 
     @Test
@@ -60,10 +69,9 @@ class ProductServiceTest {
         Product product = new Product("Apple", 1.0);
         product.setId(1L);
 
-        when(productRepository.findById(anyLong())).thenReturn(Optional.of(product));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
         Product result = productService.getProductById(1L);
-        System.out.println("DEBUG: result = " + result);
 
         assertEquals("Apple", result.getName());
         assertEquals(1.0, result.getPrice());
@@ -72,8 +80,15 @@ class ProductServiceTest {
 
     @Test
     void testDeleteProduct() {
-        doNothing().when(productRepository).deleteById(1L);
+        Product existingProduct = new Product("Apple", 1.0);
+        existingProduct.setId(1L);
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(existingProduct));
+
         productService.deleteProduct(1L);
+
+        verify(productRepository, times(1)).save(any(Product.class));
         verify(productRepository, times(1)).deleteById(1L);
+        verify(productProducer, times(1)).sendMessage(any(Product.class));
     }
 }

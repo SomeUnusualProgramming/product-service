@@ -1,13 +1,11 @@
 package com.example.productservice.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -24,10 +22,16 @@ public class Product {
     private String category;
     private Double price;
     private Integer stockQuantity;
+    private Long originalProductId;
+
+    // Pola do historii zmian
+    private String eventType; // CREATED, UPDATED, DELETED, LOW_STOCK
+    private LocalDateTime eventTime;
 
     // Konstruktor pomocniczy do testów
     public Product(String name, Double price) {
         this.name = name;
         this.price = price;
+        this.eventTime = LocalDateTime.now();
     }
 }
