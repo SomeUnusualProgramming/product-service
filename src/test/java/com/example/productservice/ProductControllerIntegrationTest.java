@@ -49,11 +49,13 @@ public class ProductControllerIntegrationTest {
                 """;
 
         mockMvc.perform(post("/api/products")
+                        .header("X-Tenant-Id", "test-tenant")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(productJson))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/products"))
+        mockMvc.perform(get("/api/products")
+                        .header("X-Tenant-Id", "test-tenant"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("Apple"));
     }

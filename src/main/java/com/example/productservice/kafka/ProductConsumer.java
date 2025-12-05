@@ -1,47 +1,39 @@
 package com.example.productservice.kafka;
 
+import com.example.productservice.constant.AppConstants;
 import com.example.productservice.model.Product;
-import com.example.productservice.repository.ProductRepository;
+import com.example.productservice.service.ProductService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
 
 @Service
 public class ProductConsumer {
 
-    private final ProductRepository productRepository;
+    private static final Logger logger = LoggerFactory.getLogger(ProductConsumer.class);
     private final ObjectMapper objectMapper;
+    private final ProductService productService;
 
-    public ProductConsumer(ProductRepository productRepository, ObjectMapper objectMapper) {
-        this.productRepository = productRepository;
+    public ProductConsumer(ObjectMapper objectMapper, ProductService productService) {
         this.objectMapper = objectMapper;
+        this.productService = productService;
     }
 
-    @KafkaListener(topics = "products", groupId = "product-events-group")
-    public void consume(String message) {
+    @KafkaListener(topics = {AppConstants.Kafka.TOPIC_PRODUCTS_LEGACY, AppConstants.Kafka.TOPIC_PRODUCTS},
+                   groupId = AppConstants.Kafka.GROUP_ID_COMBINED)
+    public void handleProductEvent(String message, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            System.out.println("Kafka message received: " + message); // <- logujemy surowy JSON
-
+            logger.info(AppConstants.Logger.KAFKA_MESSAGE_RECEIVED, topic, message);
             Product productEvent = objectMapper.readValue(message, Product.class);
-            productEvent.setEventTime(LocalDateTime.now());
 
-            Product history = new Product();
-            history.setName(productEvent.getName());
-            history.setDescription(productEvent.getDescription());
-            history.setPrice(productEvent.getPrice());
-            history.setEventType(productEvent.getEventType());
-            history.setEventTime(productEvent.getEventTime());
-            history.setOriginalProductId(productEvent.getId());
-
-            System.out.println("History to save: " + history); // <- logujemy obiekt przed zapisem
-            productRepository.save(history);
-            System.out.println("History saved: id=" + history.getId());
+            boolean processEvent = AppConstants.Kafka.TOPIC_PRODUCTS.equals(topic);
+            productService.handleProductEventFromKafka(productEvent, processEvent);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(AppConstants.Logger.ERROR_KAFKA_DESERIALIZE, topic, e);
         }
     }
-
-
 }

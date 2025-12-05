@@ -1,19 +1,21 @@
 package com.example.productservice.kafka;
 
+import com.example.productservice.constant.AppConstants;
 import com.example.productservice.model.Product;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
 
 @Profile("!test")
 @Component
 public class ProductProducer {
 
+    private static final Logger logger = LoggerFactory.getLogger(ProductProducer.class);
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
-    private static final String TOPIC = "products-topic";
 
     public ProductProducer(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
         this.kafkaTemplate = kafkaTemplate;
@@ -24,16 +26,15 @@ public class ProductProducer {
         try {
             String json = objectMapper.writeValueAsString(product);
 
-            kafkaTemplate.send(TOPIC, json).whenComplete((result, ex) -> {
+            kafkaTemplate.send(AppConstants.Kafka.TOPIC_PRODUCTS, json).whenComplete((result, ex) -> {
                 if (ex == null) {
-                    System.out.println("Message sent: " + json);
+                    logger.info(AppConstants.Logger.MESSAGE_SENT, AppConstants.Kafka.TOPIC_PRODUCTS, json);
                 } else {
-                    System.err.println("Failed to send message: " + json);
-                    ex.printStackTrace();
+                    logger.error(AppConstants.Logger.MESSAGE_SEND_FAILED, AppConstants.Kafka.TOPIC_PRODUCTS, json, ex);
                 }
             });
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(AppConstants.Logger.ERROR_SERIALIZING, e);
         }
     }
 }
