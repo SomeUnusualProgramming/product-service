@@ -1,11 +1,12 @@
 package com.example.productservice.exception;
 
-public class ProductNotFoundException extends RuntimeException {
-    public ProductNotFoundException(String message) {
-        super(message);
+public class ProductNotFoundException extends ResourceNotFoundException {
+
+    public ProductNotFoundException(Long productId) {
+        super("Product", "id", productId);
     }
 
-    public ProductNotFoundException(String message, Throwable cause) {
-        super(message, cause);
+    public ProductNotFoundException(String message) {
+        super(message);
     }
 }

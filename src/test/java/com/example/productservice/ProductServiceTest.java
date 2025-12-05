@@ -1,5 +1,6 @@
 package com.example.productservice;
 
+import com.example.productservice.dto.ProductRequestDTO;
 import com.example.productservice.exception.ProductNotFoundException;
 import com.example.productservice.kafka.ProductProducer;
 import com.example.productservice.model.Product;
@@ -104,7 +105,9 @@ class ProductServiceTest {
 
     @Test
     void testUpdateProductThrowsExceptionWhenNotFound() {
-        Product updatedProduct = new Product("Updated", 5.0);
+        ProductRequestDTO updatedProduct = new ProductRequestDTO();
+        updatedProduct.setName("Updated");
+        updatedProduct.setPrice(5.0);
 
         when(productRepository.findByIdAndTenantId(999L, "test-tenant")).thenReturn(Optional.empty());
 
