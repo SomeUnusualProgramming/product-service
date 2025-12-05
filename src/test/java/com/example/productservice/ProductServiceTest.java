@@ -1,8 +1,10 @@
 package com.example.productservice;
 
+import com.example.productservice.exception.ProductNotFoundException;
 import com.example.productservice.kafka.ProductProducer;
 import com.example.productservice.model.Product;
 import com.example.productservice.repository.ProductRepository;
+import com.example.productservice.security.TenantContext;
 import com.example.productservice.service.ProductService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,7 @@ class ProductServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        TenantContext.setTenantId("test-tenant");
     }
 
     @Test
@@ -39,12 +42,12 @@ class ProductServiceTest {
                 new Product("Apple", 1.0),
                 new Product("Banana", 2.0)
         );
-        when(productRepository.findAll()).thenReturn(mockProducts);
+        when(productRepository.findCurrentProductsByTenant("test-tenant")).thenReturn(mockProducts);
 
         List<Product> products = productService.getAllProducts();
 
         assertEquals(2, products.size());
-        verify(productRepository, times(1)).findAll();
+        verify(productRepository, times(1)).findCurrentProductsByTenant("test-tenant");
     }
 
     @Test
@@ -69,7 +72,7 @@ class ProductServiceTest {
         Product product = new Product("Apple", 1.0);
         product.setId(1L);
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndTenantId(1L, "test-tenant")).thenReturn(Optional.of(product));
 
         Product result = productService.getProductById(1L);
 
@@ -79,16 +82,39 @@ class ProductServiceTest {
     }
 
     @Test
+    void testGetProductByIdThrowsExceptionWhenNotFound() {
+        when(productRepository.findByIdAndTenantId(999L, "test-tenant")).thenReturn(Optional.empty());
+
+        assertThrows(ProductNotFoundException.class, () -> productService.getProductById(999L));
+    }
+
+    @Test
     void testDeleteProduct() {
         Product existingProduct = new Product("Apple", 1.0);
         existingProduct.setId(1L);
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(existingProduct));
+        when(productRepository.findByIdAndTenantId(1L, "test-tenant")).thenReturn(Optional.of(existingProduct));
 
         productService.deleteProduct(1L);
 
         verify(productRepository, times(1)).save(any(Product.class));
         verify(productRepository, times(1)).deleteById(1L);
         verify(productProducer, times(1)).sendMessage(any(Product.class));
+    }
+
+    @Test
+    void testUpdateProductThrowsExceptionWhenNotFound() {
+        Product updatedProduct = new Product("Updated", 5.0);
+
+        when(productRepository.findByIdAndTenantId(999L, "test-tenant")).thenReturn(Optional.empty());
+
+        assertThrows(ProductNotFoundException.class, () -> productService.updateProduct(999L, updatedProduct));
+    }
+
+    @Test
+    void testDeleteProductThrowsExceptionWhenNotFound() {
+        when(productRepository.findByIdAndTenantId(999L, "test-tenant")).thenReturn(Optional.empty());
+
+        assertThrows(ProductNotFoundException.class, () -> productService.deleteProduct(999L));
     }
 }
