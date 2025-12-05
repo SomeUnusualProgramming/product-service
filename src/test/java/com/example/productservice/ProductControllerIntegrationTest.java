@@ -235,17 +235,17 @@ public class ProductControllerIntegrationTest {
         @DisplayName("GET /api/products - should reject request without X-Tenant-Id header")
         void testGetProductsWithoutTenantHeader() throws Exception {
             mockMvc.perform(get(BASE_PATH))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.error").value("INTERNAL_SERVER_ERROR"))
-                    .andExpect(jsonPath("$.message").value(containsString("error")));
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("TENANT_MISSING"))
+                    .andExpect(jsonPath("$.message").value(containsString("Tenant ID")));
         }
 
         @Test
         @DisplayName("GET /api/products/{id} - should reject request without X-Tenant-Id header")
         void testGetProductByIdWithoutTenantHeader() throws Exception {
             mockMvc.perform(get(BASE_PATH + "/1"))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.error").value("INTERNAL_SERVER_ERROR"));
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("TENANT_MISSING"));
         }
 
         @Test
@@ -264,8 +264,8 @@ public class ProductControllerIntegrationTest {
             mockMvc.perform(post(BASE_PATH)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(productJson))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.error").value("INTERNAL_SERVER_ERROR"));
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("TENANT_MISSING"));
         }
 
         @Test
@@ -284,16 +284,16 @@ public class ProductControllerIntegrationTest {
             mockMvc.perform(put(BASE_PATH + "/1")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(updateJson))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.error").value("INTERNAL_SERVER_ERROR"));
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("TENANT_MISSING"));
         }
 
         @Test
         @DisplayName("DELETE /api/products/{id} - should reject request without X-Tenant-Id header")
         void testDeleteProductWithoutTenantHeader() throws Exception {
             mockMvc.perform(delete(BASE_PATH + "/1"))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.error").value("INTERNAL_SERVER_ERROR"));
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("TENANT_MISSING"));
         }
 
         @Test
@@ -301,8 +301,8 @@ public class ProductControllerIntegrationTest {
         void testGetProductsWithBlankTenantId() throws Exception {
             mockMvc.perform(get(BASE_PATH)
                             .header("X-Tenant-Id", "   "))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.error").value("INTERNAL_SERVER_ERROR"));
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("TENANT_MISSING"));
         }
 
         @Test

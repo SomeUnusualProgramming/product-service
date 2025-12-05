@@ -186,4 +186,67 @@ public class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.price").value(10.0))
                 .andExpect(jsonPath("$.stockQuantity").value(50));
     }
+
+    @Test
+    void testMissingTenantIdReturns400() throws Exception {
+        String validProductJson = """
+                {
+                    "name": "Valid Product",
+                    "description": "Valid description",
+                    "category": "Valid Category",
+                    "price": 10.0,
+                    "stockQuantity": 50
+                }
+                """;
+
+        mockMvc.perform(post("/api/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validProductJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("TENANT_MISSING"))
+                .andExpect(jsonPath("$.message").value(containsString("Tenant ID")));
+    }
+
+    @Test
+    void testBlankTenantIdReturns400() throws Exception {
+        String validProductJson = """
+                {
+                    "name": "Valid Product",
+                    "description": "Valid description",
+                    "category": "Valid Category",
+                    "price": 10.0,
+                    "stockQuantity": 50
+                }
+                """;
+
+        mockMvc.perform(post("/api/products")
+                        .header("X-Tenant-Id", "   ")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validProductJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("TENANT_MISSING"));
+    }
+
+    @Test
+    void testInvalidTenantIdFormatReturns400() throws Exception {
+        String validProductJson = """
+                {
+                    "name": "Valid Product",
+                    "description": "Valid description",
+                    "category": "Valid Category",
+                    "price": 10.0,
+                    "stockQuantity": 50
+                }
+                """;
+
+        mockMvc.perform(post("/api/products")
+                        .header("X-Tenant-Id", "invalid@tenant#")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validProductJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value(containsString("Invalid tenant ID")));
+    }
 }
