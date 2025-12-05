@@ -181,7 +181,7 @@ public class GlobalExceptionHandlerTest {
                         .header("X-Tenant-Id", "test-tenant")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validProductJson))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Valid Product"))
                 .andExpect(jsonPath("$.price").value(10.0))
                 .andExpect(jsonPath("$.stockQuantity").value(50));

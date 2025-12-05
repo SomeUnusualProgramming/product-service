@@ -52,7 +52,7 @@ public class ProductControllerIntegrationTest {
                         .header("X-Tenant-Id", "test-tenant")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(productJson))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/products")
                         .header("X-Tenant-Id", "test-tenant"))
