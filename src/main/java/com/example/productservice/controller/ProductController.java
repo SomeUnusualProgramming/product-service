@@ -1,9 +1,12 @@
 package com.example.productservice.controller;
 
 import com.example.productservice.constant.AppConstants;
-import com.example.productservice.model.Product;
+import com.example.productservice.dto.ProductRequestDTO;
+import com.example.productservice.dto.ProductResponseDTO;
+import com.example.productservice.mapper.ProductMapper;
 import com.example.productservice.service.ProductService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,34 +17,51 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductMapper productMapper;
 
-    public ProductController(ProductService productService) {
+    public ProductController(ProductService productService, ProductMapper productMapper) {
         this.productService = productService;
+        this.productMapper = productMapper;
     }
 
     @GetMapping
-    public List<Product> getAllProducts() {
-        return productService.getAllProducts();
+    public ResponseEntity<List<ProductResponseDTO>> getAllProducts() {
+        List<ProductResponseDTO> products = productService.getAllProducts()
+            .stream()
+            .map(productMapper::productToProductResponseDTO)
+            .toList();
+        return ResponseEntity.ok(products);
     }
 
     @GetMapping(AppConstants.API.PATH_BY_ID)
-    public Product getProductById(@PathVariable Long id) {
-        return productService.getProductById(id);
+    public ResponseEntity<ProductResponseDTO> getProductById(@PathVariable Long id) {
+        var product = productService.getProductById(id);
+        return ResponseEntity.ok(productMapper.productToProductResponseDTO(product));
     }
 
     @GetMapping(AppConstants.API.PATH_HISTORY)
-    public List<Product> getProductHistory(@PathVariable Long id) {
-        return productService.getProductHistory(id);
+    public ResponseEntity<List<ProductResponseDTO>> getProductHistory(@PathVariable Long id) {
+        List<ProductResponseDTO> history = productService.getProductHistory(id)
+            .stream()
+            .map(productMapper::productToProductResponseDTO)
+            .toList();
+        return ResponseEntity.ok(history);
     }
 
     @PostMapping
-    public Product createProduct(@Valid @RequestBody Product product) {
-        return productService.createProduct(product);
+    public ResponseEntity<ProductResponseDTO> createProduct(@Valid @RequestBody ProductRequestDTO productRequestDTO) {
+        var product = productMapper.productRequestDTOToProduct(productRequestDTO);
+        var createdProduct = productService.createProduct(product);
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(productMapper.productToProductResponseDTO(createdProduct));
     }
 
     @PutMapping(AppConstants.API.PATH_BY_ID)
-    public Product updateProduct(@PathVariable Long id, @Valid @RequestBody Product updatedProduct) {
-        return productService.updateProduct(id, updatedProduct);
+    public ResponseEntity<ProductResponseDTO> updateProduct(
+        @PathVariable Long id,
+        @Valid @RequestBody ProductRequestDTO productRequestDTO) {
+        var updatedProduct = productService.updateProduct(id, productRequestDTO);
+        return ResponseEntity.ok(productMapper.productToProductResponseDTO(updatedProduct));
     }
 
     @DeleteMapping(AppConstants.API.PATH_BY_ID)

@@ -1,9 +1,11 @@
 package com.example.productservice.service;
 
 import com.example.productservice.constant.AppConstants;
+import com.example.productservice.dto.ProductRequestDTO;
 import com.example.productservice.exception.ProductNotFoundException;
 import com.example.productservice.kafka.HistoryBuilder;
 import com.example.productservice.kafka.ProductProducer;
+import com.example.productservice.mapper.ProductMapper;
 import com.example.productservice.model.Product;
 import com.example.productservice.repository.ProductRepository;
 import com.example.productservice.security.TenantProvider;
@@ -23,11 +25,14 @@ public class ProductService {
     private static final Logger logger = LoggerFactory.getLogger(ProductService.class);
     private final ProductRepository productRepository;
     private final ProductProducer productProducer;
+    private final ProductMapper productMapper;
 
     public ProductService(ProductRepository productRepository,
-                          ProductProducer productProducer) {
+                          ProductProducer productProducer,
+                          ProductMapper productMapper) {
         this.productRepository = productRepository;
         this.productProducer = productProducer;
+        this.productMapper = productMapper;
     }
 
     public List<Product> getAllProducts() {
@@ -38,7 +43,7 @@ public class ProductService {
     public Product getProductById(Long id) {
         String tenantId = TenantProvider.getCurrentTenantId();
         return productRepository.findByIdAndTenantId(id, tenantId)
-            .orElseThrow(() -> new ProductNotFoundException("Product with id " + id + " not found"));
+            .orElseThrow(() -> new ProductNotFoundException(id));
     }
 
     public List<Product> getProductHistory(Long id) {
@@ -57,28 +62,24 @@ public class ProductService {
         return saved;
     }
 
-    public Product updateProduct(Long id, Product updatedProduct) {
+    public Product updateProduct(Long id, ProductRequestDTO updatedProductDTO) {
         String tenantId = TenantProvider.getCurrentTenantId();
         return productRepository.findByIdAndTenantId(id, tenantId).map(existing -> {
             Product history = HistoryBuilder.createHistory(existing, AppConstants.Event.TYPE_UPDATED);
             productRepository.save(history);
 
-            existing.setName(updatedProduct.getName());
-            existing.setDescription(updatedProduct.getDescription());
-            existing.setCategory(updatedProduct.getCategory());
-            existing.setPrice(updatedProduct.getPrice());
-            existing.setStockQuantity(updatedProduct.getStockQuantity());
+            productMapper.updateProductFromDTO(updatedProductDTO, existing);
             Product saved = productRepository.save(existing);
 
             productProducer.sendMessage(saved);
             return saved;
-        }).orElseThrow(() -> new ProductNotFoundException("Product with id " + id + " not found"));
+        }).orElseThrow(() -> new ProductNotFoundException(id));
     }
 
     public void deleteProduct(Long id) {
         String tenantId = TenantProvider.getCurrentTenantId();
         Product product = productRepository.findByIdAndTenantId(id, tenantId)
-            .orElseThrow(() -> new ProductNotFoundException("Product with id " + id + " not found"));
+            .orElseThrow(() -> new ProductNotFoundException(id));
         
         Product history = HistoryBuilder.createHistory(product, AppConstants.Event.TYPE_DELETED);
         productRepository.save(history);
