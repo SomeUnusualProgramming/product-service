@@ -10,7 +10,6 @@ public final class AppConstants {
         public static final String TYPE_CREATED = "CREATED";
         public static final String TYPE_UPDATED = "UPDATED";
         public static final String TYPE_DELETED = "DELETED";
-        public static final String TYPE_LOW_STOCK = "LOW_STOCK";
 
         private Event() {
             throw new AssertionError("Cannot instantiate utility class");
@@ -34,6 +33,22 @@ public final class AppConstants {
         public static final String PATH_HISTORY = "/{id:[0-9]+}/history";
 
         private API() {
+            throw new AssertionError("Cannot instantiate utility class");
+        }
+    }
+
+    public static final class ErrorCode {
+        public static final String PRODUCT_NOT_FOUND = "PRODUCT_NOT_FOUND";
+        public static final String RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND";
+        public static final String VALIDATION_ERROR = "VALIDATION_ERROR";
+        public static final String UNAUTHORIZED = "UNAUTHORIZED";
+        public static final String TENANT_MISSING = "TENANT_MISSING";
+        public static final String METHOD_NOT_ALLOWED = "METHOD_NOT_ALLOWED";
+        public static final String ENDPOINT_NOT_FOUND = "ENDPOINT_NOT_FOUND";
+        public static final String INVALID_ARGUMENT = "INVALID_ARGUMENT";
+        public static final String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
+
+        private ErrorCode() {
             throw new AssertionError("Cannot instantiate utility class");
         }
     }
