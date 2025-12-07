@@ -1,5 +1,6 @@
 package com.example.productservice.controller;
 
+import com.example.productservice.constant.AppConstants;
 import com.example.productservice.dto.ErrorResponse;
 import com.example.productservice.exception.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,7 +30,7 @@ public class GlobalExceptionHandler {
         logger.warn("Product not found: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
             HttpStatus.NOT_FOUND.value(),
-            "PRODUCT_NOT_FOUND",
+            AppConstants.ErrorCode.PRODUCT_NOT_FOUND,
             ex.getMessage(),
             request.getRequestURI()
         );
@@ -42,7 +43,7 @@ public class GlobalExceptionHandler {
         logger.warn("Resource not found: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
             HttpStatus.NOT_FOUND.value(),
-            "RESOURCE_NOT_FOUND",
+            AppConstants.ErrorCode.RESOURCE_NOT_FOUND,
             ex.getMessage(),
             request.getRequestURI()
         );
@@ -60,7 +61,7 @@ public class GlobalExceptionHandler {
 
         ErrorResponse error = new ErrorResponse(
             HttpStatus.BAD_REQUEST.value(),
-            "VALIDATION_ERROR",
+            AppConstants.ErrorCode.VALIDATION_ERROR,
             "Validation failed",
             request.getRequestURI(),
             fieldErrors
@@ -74,7 +75,7 @@ public class GlobalExceptionHandler {
         logger.warn("Validation exception: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
             HttpStatus.BAD_REQUEST.value(),
-            "VALIDATION_ERROR",
+            AppConstants.ErrorCode.VALIDATION_ERROR,
             ex.getMessage(),
             request.getRequestURI(),
             ex.getFieldErrors()
@@ -114,7 +115,7 @@ public class GlobalExceptionHandler {
         logger.warn("Unauthorized access: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
             HttpStatus.UNAUTHORIZED.value(),
-            "UNAUTHORIZED",
+            AppConstants.ErrorCode.UNAUTHORIZED,
             ex.getMessage(),
             request.getRequestURI()
         );
@@ -127,7 +128,7 @@ public class GlobalExceptionHandler {
         logger.warn("Tenant ID missing or invalid: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
             HttpStatus.BAD_REQUEST.value(),
-            "TENANT_MISSING",
+            AppConstants.ErrorCode.TENANT_MISSING,
             ex.getMessage(),
             request.getRequestURI()
         );
@@ -140,7 +141,7 @@ public class GlobalExceptionHandler {
         logger.warn("Method not allowed: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
             HttpStatus.METHOD_NOT_ALLOWED.value(),
-            "METHOD_NOT_ALLOWED",
+            AppConstants.ErrorCode.METHOD_NOT_ALLOWED,
             "The request method is not supported for this endpoint",
             request.getRequestURI()
         );
@@ -153,7 +154,7 @@ public class GlobalExceptionHandler {
         logger.warn("Endpoint not found: {}", ex.getRequestURL());
         ErrorResponse error = new ErrorResponse(
             HttpStatus.NOT_FOUND.value(),
-            "ENDPOINT_NOT_FOUND",
+            AppConstants.ErrorCode.ENDPOINT_NOT_FOUND,
             "The requested endpoint does not exist",
             request.getRequestURI()
         );
@@ -166,7 +167,7 @@ public class GlobalExceptionHandler {
         logger.warn("Illegal argument: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
             HttpStatus.BAD_REQUEST.value(),
-            "INVALID_ARGUMENT",
+            AppConstants.ErrorCode.INVALID_ARGUMENT,
             ex.getMessage(),
             request.getRequestURI()
         );
@@ -179,7 +180,7 @@ public class GlobalExceptionHandler {
         logger.error("Unexpected error occurred", ex);
         ErrorResponse error = new ErrorResponse(
             HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            "INTERNAL_SERVER_ERROR",
+            AppConstants.ErrorCode.INTERNAL_SERVER_ERROR,
             "An unexpected error occurred. Please contact support if the problem persists",
             request.getRequestURI()
         );
