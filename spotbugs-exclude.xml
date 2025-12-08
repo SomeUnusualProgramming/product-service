@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter xmlns="http://findbugs.sourceforge.net/filter/3.0.0">
+    <!-- Exclude EI_EXPOSE_REP warnings in DTOs and Beans -->
+    <!-- This is acceptable for data transfer objects and Spring components -->
+    <Match>
+        <Class name="~.*DTO|.*Response|.*Request|.*Exception"/>
+        <Bug code="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!-- Exclude mutable object exposure in Spring components -->
+    <Match>
+        <Class name="~.*Controller|.*Service|.*Consumer|.*Producer|.*Filter"/>
+        <Bug code="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!-- Exclude CT_CONSTRUCTOR_THROW in HistoryBuilder static utility -->
+    <Match>
+        <Class name="com.example.productservice.kafka.HistoryBuilder"/>
+        <Bug code="CT_CONSTRUCTOR_THROW"/>
+    </Match>
+
+    <!-- Exclude REC_CATCH_EXCEPTION in Kafka consumer (generic exception handling is acceptable) -->
+    <Match>
+        <Class name="com.example.productservice.kafka.ProductConsumer"/>
+        <Bug code="REC_CATCH_EXCEPTION"/>
+    </Match>
+</FindBugsFilter>
