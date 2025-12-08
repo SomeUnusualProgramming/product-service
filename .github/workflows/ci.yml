@@ -1,4 +1,4 @@
-name: CI - Build and Test
+name: CI - Build, Test & Quality Checks
 
 on:
   push:
@@ -19,8 +19,24 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-          cache: maven   # <--- przyspiesza build 2–3x
+          cache: maven
 
-      - name: Build and run tests
+      - name: Build and run tests with quality checks
         run: mvn -B clean verify
+
+      - name: Run SpotBugs analysis
+        run: mvn spotbugs:check
+        continue-on-error: true
+
+      - name: Generate JaCoCo coverage report
+        run: mvn jacoco:report
+        if: always()
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          files: ./target/site/jacoco/jacoco.xml
+          flags: unittests
+          name: codecov-umbrella
         
