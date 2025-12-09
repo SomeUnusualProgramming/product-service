@@ -21,8 +21,16 @@ spring:
     producer:
       acks: all
 
+kafka:
+  listener:
+    auto-start: false
+
 server:
   port: 8081
+
+ollama:
+  host: ${OLLAMA_HOST:http://localhost:11434}
+  model: ${OLLAMA_MODEL:mistral}
 
 management:
   endpoints:
