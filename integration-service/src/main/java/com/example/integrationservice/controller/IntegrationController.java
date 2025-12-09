@@ -1,11 +1,11 @@
 package com.example.integrationservice.controller;
 
+import com.example.integrationservice.dto.MappingRequestDto;
+import com.example.integrationservice.dto.MappingResponseDto;
+import com.example.integrationservice.service.AiMappingService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -14,6 +14,11 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/integration")
 public class IntegrationController {
+    private final AiMappingService aiMappingService;
+
+    public IntegrationController(AiMappingService aiMappingService) {
+        this.aiMappingService = aiMappingService;
+    }
 
     @GetMapping("/status")
     public ResponseEntity<Map<String, Object>> getStatus() {
@@ -23,6 +28,16 @@ public class IntegrationController {
         status.put("timestamp", LocalDateTime.now());
         status.put("version", "0.0.1");
         return ResponseEntity.ok(status);
+    }
+
+    @PostMapping("/ai/map")
+    public ResponseEntity<MappingResponseDto> mapDataWithAi(@RequestBody MappingRequestDto request) {
+        MappingResponseDto response = aiMappingService.mapData(request);
+        if ("SUCCESS".equals(response.getStatus())) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
     }
 
     @PostMapping("/sync/products")
