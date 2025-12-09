@@ -85,4 +85,33 @@ public final class AppConstants {
             throw new AssertionError("Cannot instantiate utility class");
         }
     }
+
+    public static final class Search {
+        public static final String PARAM_SEARCH = "search";
+        public static final String PARAM_CATEGORY = "category";
+        public static final String PARAM_MIN_PRICE = "minPrice";
+        public static final String PARAM_MAX_PRICE = "maxPrice";
+        public static final String PARAM_MIN_STOCK = "minStock";
+        public static final String PARAM_MAX_STOCK = "maxStock";
+        public static final String PARAM_SORT_BY = "sortBy";
+        public static final String PARAM_SORT_ORDER = "order";
+        public static final String PARAM_PAGE = "page";
+        public static final String PARAM_SIZE = "size";
+
+        public static final String SORT_BY_NAME = "name";
+        public static final String SORT_BY_PRICE = "price";
+        public static final String SORT_BY_STOCK = "stockQuantity";
+        public static final String SORT_BY_CREATED = "eventTime";
+
+        public static final String SORT_ASC = "asc";
+        public static final String SORT_DESC = "desc";
+
+        public static final int DEFAULT_PAGE = 0;
+        public static final int DEFAULT_SIZE = 20;
+        public static final int MAX_SIZE = 100;
+
+        private Search() {
+            throw new AssertionError("Cannot instantiate utility class");
+        }
+    }
 }

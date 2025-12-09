@@ -1,11 +1,16 @@
 package com.example.productservice.controller;
 
 import com.example.productservice.constant.AppConstants;
+import com.example.productservice.dto.PageResponseDTO;
+import com.example.productservice.dto.ProductFilterDTO;
 import com.example.productservice.dto.ProductRequestDTO;
 import com.example.productservice.dto.ProductResponseDTO;
+import com.example.productservice.mapper.PageMapper;
 import com.example.productservice.mapper.ProductMapper;
+import com.example.productservice.model.Product;
 import com.example.productservice.service.ProductService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -46,6 +51,16 @@ public class ProductController {
             .map(productMapper::productToProductResponseDTO)
             .toList();
         return ResponseEntity.ok(history);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<PageResponseDTO<ProductResponseDTO>> searchProducts(
+            @Valid ProductFilterDTO filter) {
+        Page<Product> products = productService.searchAndFilterProducts(filter);
+        PageResponseDTO<ProductResponseDTO> response = PageMapper.toPageResponseDTO(
+            products.map(productMapper::productToProductResponseDTO)
+        );
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping
