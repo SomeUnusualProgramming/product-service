@@ -3,17 +3,17 @@ version: "3.9"
 services:
   db:
     image: postgres:15
-    container_name: products-db
+    container_name: postgres-db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-products}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-haslo}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
-      - products_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -50,22 +50,23 @@ services:
       timeout: 10s
       retries: 20
 
-  app:
-    build: .
-    container_name: product-service-app
+  product-service:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    container_name: product-service
     depends_on:
       db:
         condition: service_healthy
       kafka:
         condition: service_healthy
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "${PRODUCT_SERVICE_PORT:-8080}:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-products}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-haslo}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/products_db
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-postgres}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      # Add any additional environment variables for tenants or profiles
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
@@ -73,5 +74,29 @@ services:
       timeout: 5s
       retries: 10
 
+  integration-service:
+    build:
+      context: .
+      dockerfile: integration-service/Dockerfile
+    container_name: integration-service
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "${INTEGRATION_SERVICE_PORT:-8081}:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/integration_db
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-postgres}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
-  products_data:
+  postgres_data:

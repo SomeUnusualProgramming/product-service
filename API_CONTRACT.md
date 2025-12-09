@@ -406,7 +406,7 @@ If a major breaking change becomes necessary, a new versioned endpoint will be i
 ---
 
 ## Last Updated
-2025-01-01
+2025-09-12
 
 ## Maintained By
-Product Service Team
+ASW
