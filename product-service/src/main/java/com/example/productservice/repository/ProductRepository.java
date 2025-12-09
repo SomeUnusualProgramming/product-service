@@ -1,0 +1,28 @@
+package com.example.productservice.repository;
+
+import com.example.productservice.model.Product;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
+    List<Product> findByOriginalProductIdAndTenantIdOrderByEventTimeDesc(Long originalProductId, String tenantId);
+
+    @Query("SELECT p FROM Product p WHERE p.tenantId = :tenantId AND (p.eventType IS NULL OR p.eventType = 'CREATED')")
+    List<Product> findCurrentProductsByTenant(@Param("tenantId") String tenantId);
+
+    @Query("SELECT p FROM Product p WHERE p.tenantId = :tenantId AND (p.eventType IS NULL OR p.eventType = 'CREATED')")
+    Page<Product> findCurrentProductsByTenant(@Param("tenantId") String tenantId, Pageable pageable);
+
+    @Query("SELECT p FROM Product p WHERE p.id = :id AND p.tenantId = :tenantId")
+    Optional<Product> findByIdAndTenantId(@Param("id") Long id, @Param("tenantId") String tenantId);
+
+    @Query("SELECT p FROM Product p WHERE p.tenantId = :tenantId")
+    List<Product> findAllByTenantId(@Param("tenantId") String tenantId);
+}
