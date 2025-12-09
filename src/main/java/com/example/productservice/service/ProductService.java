@@ -1,6 +1,7 @@
 package com.example.productservice.service;
 
 import com.example.productservice.constant.AppConstants;
+import com.example.productservice.dto.ProductFilterDTO;
 import com.example.productservice.dto.ProductRequestDTO;
 import com.example.productservice.exception.ProductNotFoundException;
 import com.example.productservice.kafka.HistoryBuilder;
@@ -8,9 +9,15 @@ import com.example.productservice.kafka.ProductProducer;
 import com.example.productservice.mapper.ProductMapper;
 import com.example.productservice.model.Product;
 import com.example.productservice.repository.ProductRepository;
+import com.example.productservice.repository.ProductSpecification;
+import com.example.productservice.repository.SortBuilder;
 import com.example.productservice.security.TenantProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,6 +58,18 @@ public class ProductService {
         List<Product> history = productRepository.findByOriginalProductIdAndTenantIdOrderByEventTimeDesc(id, tenantId);
         logger.info(AppConstants.Logger.HISTORY_RETRIEVED, id, history.size());
         return history;
+    }
+
+    public Page<Product> searchAndFilterProducts(ProductFilterDTO filter) {
+        String tenantId = TenantProvider.getCurrentTenantId();
+        
+        Sort sort = SortBuilder.buildSort(filter);
+        Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
+        
+        return productRepository.findAll(
+            ProductSpecification.buildSearchSpecification(filter, tenantId), 
+            pageable
+        );
     }
 
     public Product createProduct(Product product) {
