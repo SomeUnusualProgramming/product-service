@@ -34,12 +34,19 @@ public class TenantFilter implements Filter {
             throws IOException, ServletException {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
+        String requestUri = httpRequest.getRequestURI();
+
+        if (shouldSkipTenantValidation(requestUri)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         String tenantId = httpRequest.getHeader(TENANT_HEADER);
 
         if (tenantId == null || tenantId.isBlank()) {
-            logger.warn("Missing tenant ID header in request: {}", httpRequest.getRequestURI());
+            logger.warn("Missing tenant ID header in request: {}", requestUri);
             sendErrorResponse(httpResponse, HttpStatus.BAD_REQUEST, "TENANT_MISSING",
-                    "Tenant ID is required. Please provide X-Tenant-Id header.", httpRequest.getRequestURI());
+                    "Tenant ID is required. Please provide X-Tenant-Id header.", requestUri);
             return;
         }
 
@@ -51,10 +58,31 @@ public class TenantFilter implements Filter {
         } catch (IllegalArgumentException ex) {
             logger.warn("Invalid tenant ID format: {}", tenantId);
             sendErrorResponse(httpResponse, HttpStatus.BAD_REQUEST, "INVALID_TENANT_ID",
-                    ex.getMessage(), httpRequest.getRequestURI());
+                    ex.getMessage(), requestUri);
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private boolean shouldSkipTenantValidation(String requestUri) {
+        return requestUri.equals("/") ||
+               requestUri.equals("/index.html") ||
+               requestUri.startsWith("/static/") ||
+               requestUri.startsWith("/css/") ||
+               requestUri.startsWith("/js/") ||
+               requestUri.startsWith("/images/") ||
+               requestUri.startsWith("/favicon") ||
+               requestUri.endsWith(".css") ||
+               requestUri.endsWith(".js") ||
+               requestUri.endsWith(".png") ||
+               requestUri.endsWith(".jpg") ||
+               requestUri.endsWith(".jpeg") ||
+               requestUri.endsWith(".gif") ||
+               requestUri.endsWith(".svg") ||
+               requestUri.endsWith(".ico") ||
+               requestUri.endsWith(".woff") ||
+               requestUri.endsWith(".woff2") ||
+               requestUri.endsWith(".ttf");
     }
 
     private void sendErrorResponse(HttpServletResponse response, HttpStatus status, String errorCode,

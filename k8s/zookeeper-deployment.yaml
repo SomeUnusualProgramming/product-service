@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zookeeper
+  namespace: product-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zookeeper
+  template:
+    metadata:
+      labels:
+        app: zookeeper
+    spec:
+      containers:
+      - name: zookeeper
+        image: wurstmeister/zookeeper:latest
+        ports:
+        - containerPort: 2181
+          name: zookeeper
+        env:
+        - name: ZOO_CFG_EXTRA
+          value: "dataDir=/var/lib/zookeeper/data"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: zookeeper-data
+          mountPath: /var/lib/zookeeper/data
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - echo ruok | nc localhost 2181 | grep imok
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - echo ruok | nc localhost 2181 | grep imok
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: zookeeper-data
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  namespace: product-service
+spec:
+  selector:
+    app: zookeeper
+  type: ClusterIP
+  ports:
+  - port: 2181
+    targetPort: 2181
+    name: zookeeper
