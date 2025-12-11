@@ -58,11 +58,11 @@ public class IntegrationController {
                     <div class="section">
                         <h2>Status & Health</h2>
                         <div class="endpoint">
-                            <span class="method get">GET</span> <a href="/api/integration/status">/api/integration/status</a>
+                            <span class="method get">GET</span> <a href="/api/integration/status" target="_blank">/api/integration/status</a>
                             <div class="description">Service status and version info</div>
                         </div>
                         <div class="endpoint">
-                            <span class="method get">GET</span> <a href="/api/integration/health/detailed">/api/integration/health/detailed</a>
+                            <span class="method get">GET</span> <a href="/api/integration/health/detailed" target="_blank">/api/integration/health/detailed</a>
                             <div class="description">Detailed health check (database, kafka, product-service)</div>
                         </div>
                     </div>
@@ -72,7 +72,7 @@ public class IntegrationController {
                         <div class="endpoint">
                             <span class="method post">POST</span> /api/integration/file/upload
                             <div class="description">Upload and parse file (CSV, JSON, Excel) with schema detection</div>
-                            <div class="description" style="margin-top: 10px;"><a href="/file-mapping.html">→ Test File Upload</a></div>
+                            <div class="description" style="margin-top: 10px;"><a href="/file-mapping.html" target="_blank">→ Test File Upload</a></div>
                         </div>
                         <div class="endpoint">
                             <span class="method post">POST</span> /api/integration/batch/map
@@ -89,7 +89,7 @@ public class IntegrationController {
                         <div class="endpoint">
                             <span class="method post">POST</span> /api/integration/ai/map
                             <div class="description">Map data using AI-powered field mapping</div>
-                            <div class="description" style="margin-top: 10px;"><a href="/ai-mapping-test.html">→ Test AI Mapping</a></div>
+                            <div class="description" style="margin-top: 10px;"><a href="/ai-mapping-test.html" target="_blank">→ Test AI Mapping</a></div>
                         </div>
                     </div>
                     
@@ -113,7 +113,7 @@ public class IntegrationController {
                         <h2>External Services</h2>
                         <div class="endpoint">
                             <span style="color: #666; font-weight: bold;">Product Service:</span>
-                            <a href="http://localhost:8080/api/products">http://localhost:8080/api/products</a>
+                            <a href="http://localhost:8080" target="_blank">http://localhost:8080</a>
                         </div>
                     </div>
                 </div>
