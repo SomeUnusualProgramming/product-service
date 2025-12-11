@@ -1,982 +1,913 @@
-# Product Service Repository
+# Product Service Monorepo - Architecture & Development Guide
 
-## Project Overview
+## Overview
 
-**Product Service Monorepo** is a Spring Boot 3.2.5 microservices architecture featuring:
-- **Product Service**: Core product management with multi-tenancy and event auditing
-- **Integration Service**: Event consumer for downstream processing
+This is a **Spring Boot 3.2.5** microservices monorepo featuring:
+- Multi-service architecture (Product Service + Integration Service)
+- Complete multi-tenant isolation at database level
+- Event-driven architecture with Apache Kafka
+- Comprehensive audit trail functionality
+- Clean code principles with DTOs and exception standardization
+- Enterprise-grade code quality tools (SpotBugs, Checkstyle, JaCoCo)
+- Full containerization with Docker Compose
 
-The architecture implements **multi-tenant isolation**, **event-driven workflows** via Kafka, and **clean code principles** through DTO-based APIs and standardized exception handling.
-
-**Tech Stack:**
-- **Language**: Java 21
-- **Framework**: Spring Boot 3.2.5 + Spring Data JPA + Spring Kafka
-- **Build Tool**: Maven 3.6+
-- **Database**: PostgreSQL 15
-- **Message Broker**: Apache Kafka (wurstmeister)
-- **ORM Mapping**: MapStruct for DTOs
-- **Code Generation**: Lombok
-- **Migrations**: Flyway
-- **Quality Tools**: JaCoCo, SpotBugs, Checkstyle
+**Java Version**: 21+  
+**Build Tool**: Maven 3.6+  
+**Framework**: Spring Boot 3.2.5
 
 ---
 
-## Quick Start
-
-### Prerequisites
-- Java 21+
-- Docker & Docker Compose
-- Maven 3.6+
-
-### Run with Docker Compose
-```bash
-docker-compose up --build
-```
-
-This starts:
-- PostgreSQL on port 5432
-- Kafka on port 9092
-- Zookeeper on port 2181
-- Spring Boot app on port 8080
-
-### Run Locally
-```bash
-mvn spring-boot:run
-```
-
----
-
-## Project Structure
+## Repository Structure
 
 ```
-.
-├── product-service/                      # Product management microservice
+product-service/
+├── product-service/              # Core product management microservice
 │   ├── src/main/java/com/example/productservice/
-│   │   ├── controller/                   # REST endpoints
-│   │   │   ├── ProductController.java
-│   │   │   └── GlobalExceptionHandler.java
-│   │   ├── service/                      # Business logic
-│   │   │   └── ProductService.java
-│   │   ├── repository/                   # Data access (JPA + Specifications)
-│   │   │   ├── ProductRepository.java
-│   │   │   ├── ProductSpecification.java
-│   │   │   └── SortBuilder.java
-│   │   ├── model/                        # JPA entities
-│   │   │   ├── Product.java
-│   │   │   ├── TenantEntity.java
-│   │   │   └── HasTenantId.java
-│   │   ├── dto/                          # Request/Response DTOs
-│   │   │   ├── ProductRequestDTO.java
-│   │   │   ├── ProductResponseDTO.java
-│   │   │   ├── PageResponseDTO.java
-│   │   │   └── ErrorResponse.java
-│   │   ├── mapper/                       # MapStruct mappers
-│   │   │   └── ProductMapper.java
-│   │   ├── kafka/                        # Event streaming
-│   │   │   ├── ProductProducer.java
-│   │   │   ├── ProductConsumer.java
-│   │   │   ├── KafkaConfig.java
-│   │   │   └── HistoryBuilder.java
-│   │   ├── exception/                    # Custom exceptions
-│   │   │   ├── ProductNotFoundException.java
-│   │   │   ├── ValidationException.java
-│   │   │   ├── BusinessException.java
-│   │   │   ├── ConflictException.java
-│   │   │   ├── ResourceNotFoundException.java
-│   │   │   ├── UnauthorizedException.java
-│   │   │   └── TenantMissingException.java
-│   │   ├── security/                     # Multi-tenancy context
-│   │   │   ├── TenantContext.java
-│   │   │   ├── TenantProvider.java
-│   │   │   └── TenantValidator.java
-│   │   ├── filter/                       # Servlet filters
-│   │   │   └── TenantFilter.java
-│   │   ├── listener/                     # Entity listeners
-│   │   │   └── TenantEntityListener.java
-│   │   ├── constant/                     # Constants
-│   │   │   └── AppConstants.java
-│   │   └── ProductServiceApplication.java
-│   ├── src/test/java/                    # Unit & integration tests
+│   │   ├── controller/           # REST endpoints & global exception handlers
+│   │   ├── service/              # Business logic & domain operations
+│   │   ├── repository/           # JPA repositories with specifications
+│   │   ├── model/                # JPA entities with tenant isolation
+│   │   ├── dto/                  # Request/Response DTOs
+│   │   ├── mapper/               # MapStruct entity ↔ DTO mappers
+│   │   ├── kafka/                # Event producer/consumer implementation
+│   │   ├── security/             # Multi-tenancy logic & TenantContext
+│   │   ├── filter/               # Tenant extraction from HTTP headers
+│   │   ├── exception/            # Custom exception classes
+│   │   └── constant/             # Application constants
+│   ├── src/test/java/            # Unit & integration tests
 │   ├── src/main/resources/
-│   │   ├── application.yml               # Spring Boot config
-│   │   ├── db/migration/                 # Flyway SQL migrations
-│   │   └── logback-spring.xml            # Logging config
-│   ├── pom.xml
-│   └── Dockerfile
+│   │   ├── application.yml       # Service configuration
+│   │   ├── db/migration/         # Flyway database migrations
+│   │   └── logback-spring.xml    # Logging configuration
+│   ├── Dockerfile                # Container build definition
+│   └── pom.xml
 │
-├── integration-service/                  # Event consumer service
+├── integration-service/          # Data integration microservice
 │   ├── src/main/java/com/example/integrationservice/
-│   │   ├── controller/
-│   │   ├── kafka/                        # Kafka event consumers
-│   │   └── IntegrationServiceApplication.java
+│   │   ├── controller/           # REST endpoints
+│   │   ├── service/              # Integration business logic
+│   │   ├── repository/           # Data access layer
+│   │   ├── model/                # JPA entities
+│   │   ├── dto/                  # Request/Response DTOs
+│   │   ├── mapper/               # MapStruct mappers
+│   │   ├── kafka/                # Event consumer for product events
+│   │   ├── exception/            # Custom exceptions
+│   │   └── config/               # Service configuration
+│   ├── src/test/java/            # Unit & integration tests
 │   ├── src/main/resources/
-│   ├── pom.xml
-│   └── Dockerfile
+│   │   ├── application.yml
+│   │   ├── db/migration/
+│   │   └── logback-spring.xml
+│   ├── Dockerfile
+│   └── pom.xml
 │
-├── k8s/                                  # Kubernetes manifests
+├── k8s/                          # Kubernetes deployment manifests
 │   ├── namespace.yaml
+│   ├── configmap-secret.yaml
+│   ├── product-service-deployment.yaml
+│   ├── integration-service-deployment.yaml
 │   ├── postgres-statefulset.yaml
 │   ├── kafka-statefulset.yaml
 │   ├── zookeeper-deployment.yaml
-│   ├── product-service-deployment.yaml
-│   ├── integration-service-deployment.yaml
-│   ├── configmap-secret.yaml
 │   ├── ingress.yaml
 │   ├── kustomization.yaml
 │   ├── deploy.sh
 │   └── delete.sh
 │
-├── docker-compose.yml                    # Docker Compose orchestration
-├── pom.xml                               # Parent POM (modules)
-├── .env                                  # Environment variables
-├── init-databases.sql                    # DB initialization script
-├── checkstyle.xml                        # Code style rules
-├── spotbugs-exclude.xml                  # SpotBugs exclusions
-├── API_CONTRACT.md                       # API specification
-├── README.md                             # Quick start guide
-└── repo.md                               # This file
+├── .github/workflows/            # CI/CD pipelines
+├── .env                          # Environment variables (local)
+├── DB.env                        # Database configuration
+├── docker-compose.yml            # Local development infrastructure
+├── init-databases.sql            # Database initialization script
+├── init-ollama.sh                # Ollama setup script
+├── pom.xml                       # Parent POM (modules aggregator)
+├── checkstyle.xml                # Code style configuration
+├── spotbugs-exclude.xml          # SpotBugs exclusions
+├── lombok.config                 # Lombok configuration
+├── README.md                     # Quick start guide
+├── API_CONTRACT.md               # Complete API specification
+└── mvnw / mvnw.cmd              # Maven wrapper scripts
 ```
 
 ---
 
-## Core Dependencies
+## Technology Stack
 
-### Spring Boot Starters
-- **spring-boot-starter-web**: REST API support
-- **spring-boot-starter-data-jpa**: ORM and database access
-- **spring-boot-starter-validation**: Bean validation
-- **spring-boot-starter-actuator**: Monitoring and health checks
-- **spring-boot-devtools**: Development tooling with hot reload
+### Core Framework
+| Component | Version | Purpose |
+|-----------|---------|---------|
+| Spring Boot | 3.2.5 | Web framework & microservice foundation |
+| Spring Data JPA | 3.2.5 | Database access & ORM |
+| Spring Kafka | 3.2.5 | Event streaming integration |
+| Spring Validation | 3.2.5 | DTO & model validation |
+| Spring Actuator | 3.2.5 | Health checks & metrics |
 
-### Data & Database
-- **postgresql**: PostgreSQL JDBC driver
-- **h2**: In-memory database for testing
-- **flyway-core**: Database schema migration
+### Database & Messaging
+| Component | Version | Purpose |
+|-----------|---------|---------|
+| PostgreSQL | 15 | Relational database |
+| Apache Kafka | Latest | Event-driven messaging |
+| Flyway | Latest | Database schema versioning |
 
-### Message Broker
-- **spring-kafka**: Kafka producer/consumer support
-- **spring-kafka-test**: Kafka testing utilities
-
-### Utilities
-- **lombok**: Code generation (getters, setters, etc.)
-- **mapstruct**: DTO mapping code generation
+### Development & Code Quality
+| Component | Version | Purpose |
+|-----------|---------|---------|
+| Lombok | 1.18.42 | Boilerplate reduction |
+| MapStruct | 1.5.5 | Type-safe DTO mapping |
+| JaCoCo | 0.8.11 | Code coverage measurement |
+| SpotBugs | 4.8.3.1 | Bug detection analysis |
+| Checkstyle | 3.3.1 | Code style enforcement |
 
 ### Testing
-- **spring-boot-starter-test**: JUnit 5, Mockito, AssertJ
+| Component | Purpose |
+|-----------|---------|
+| JUnit 5 | Unit testing framework |
+| Mockito | Mocking & verification |
+| Spring Test | Integration testing |
+| H2 Database | In-memory testing database |
+| Kafka Test | Kafka testing utilities |
 
-### Code Quality
-- **jacoco-maven-plugin**: Code coverage reporting
-- **spotbugs-maven-plugin**: Bug detection analysis
-- **maven-checkstyle-plugin**: Code style verification
+### Data Formats (Integration Service)
+| Component | Purpose |
+|-----------|---------|
+| Jackson Databind | JSON processing |
+| Jackson XML | XML processing |
+| Apache Commons CSV | CSV parsing |
 
----
-
-## API Endpoints
-
-**Base Path:** `/api/products`
-
-### Products
-| Method | Endpoint | Status | Description |
-|--------|----------|--------|-------------|
-| GET | `/api/products` | 200 | List all products |
-| GET | `/api/products/{id}` | 200/404 | Get product by ID |
-| GET | `/api/products/{id}/history` | 200/404 | Get product audit history |
-| POST | `/api/products` | 201/400 | Create product |
-| PUT | `/api/products/{id}` | 200/400/404 | Update product |
-| DELETE | `/api/products/{id}` | 204/404 | Delete product |
-
-### Request/Response DTOs
-
-**ProductRequestDTO** (Create/Update)
-```json
-{
-  "name": "string (1-255)",
-  "description": "string (1-2000)",
-  "category": "string (1-100)",
-  "price": "double (>0, max 2 decimals)",
-  "stockQuantity": "integer (>=0)"
-}
-```
-
-**ProductResponseDTO** (Response)
-```json
-{
-  "id": "long",
-  "name": "string",
-  "description": "string",
-  "category": "string",
-  "price": "double",
-  "stockQuantity": "integer",
-  "eventType": "CREATED|UPDATED|DELETED|LOW_STOCK",
-  "eventTime": "LocalDateTime",
-  "originalProductId": "long (null for current version)"
-}
-```
-
----
-
-## Error Handling
-
-All errors return standardized `ErrorResponse`:
-
-```json
-{
-  "errorId": "UUID",
-  "status": "HTTP status code",
-  "error": "ERROR_CODE",
-  "message": "Human-readable message",
-  "timestamp": "LocalDateTime",
-  "path": "/api/products/...",
-  "fieldErrors": "Map<String, String> (nullable)",
-  "traceId": "Request trace ID (nullable)"
-}
-```
-
-### Error Codes
-- **PRODUCT_NOT_FOUND** (404): Product doesn't exist
-- **VALIDATION_ERROR** (400): Input validation failed
-- **INVALID_ARGUMENT** (400): Illegal argument
-- **CONFLICT** (409): Business logic conflict
-- **UNAUTHORIZED** (401): Authentication/authorization failed
-- **INTERNAL_SERVER_ERROR** (500): Unexpected error
+### Containerization
+| Component | Purpose |
+|-----------|---------|
+| Docker | Container runtime |
+| Docker Compose | Local orchestration |
 
 ---
 
 ## Architecture Highlights
 
-### 1. Multi-Tenancy
+### Multi-Tenancy
 
-Implements **row-level security** at the database layer:
+**Tenant Isolation Strategy**: Database-level tenant isolation with application-level enforcement
 
+**Flow**:
+1. `TenantFilter` extracts tenant ID from HTTP header (`X-Tenant-ID`)
+2. `TenantContext` stores tenant ID in thread-local storage
+3. All JPA queries are automatically filtered by tenant ID
+4. All entities inherit from `TenantEntity` base class with `tenantId` field
+5. Service layer enforces tenant-aware operations
+
+**Key Components**:
+- `TenantFilter`: Extracts & validates tenant context from requests
+- `TenantContext`: Thread-local storage for tenant ID
+- `TenantEntity`: Base class for all tenant-aware entities
+- `TenantSpecification`: JPA specifications with tenant filtering
+
+### Event-Driven Architecture
+
+**Product Events Flowing Through System**:
 ```
-Request → TenantFilter → TenantContext (thread-local)
-                              ↓
-                        All Repository queries
-                        filtered by tenant_id
-```
-
-**Implementation:**
-- `TenantFilter`: Servlet filter extracting tenant from HTTP headers (X-Tenant-ID)
-- `TenantContext`: Thread-local storage for tenant ID in current request
-- `TenantProvider`: Factory for accessing current tenant
-- `TenantValidator`: Authorization checks before operations
-- `TenantEntity`: Base class ensuring all entities have `tenant_id` field
-- `TenantEntityListener`: JPA listener auto-populating tenant_id on persist
-
-**Guarantees:**
-- ✅ Data isolation: Queries automatically filtered
-- ✅ No cross-tenant leakage possible
-- ✅ Tenant context required for all operations
-- ✅ Audit trail shows which tenant modified what
-
-### 2. Event-Driven Architecture with Kafka
-
-**Flow:**
-```
-Product CRUD → ProductProducer → Kafka topic (products-events)
-                                      ↓
-                           ProductConsumer (integration-service)
-                           Stores in Integration DB
-```
-
-**Event Types:**
-- `CREATED`: New product created
-- `UPDATED`: Product modified
-- `DELETED`: Product removed
-- `LOW_STOCK`: Stock falls below threshold
-
-**Implementation:**
-- `ProductProducer.java`: Publishes to `products-events` topic
-- `ProductConsumer.java`: Listens and processes events
-- `HistoryBuilder.java`: Constructs event objects with metadata
-- `KafkaConfig.java`: Topic configuration and consumer groups
-
-**Audit Trail Access:**
-```
-GET /api/products/{id}/history → Returns all event versions with timestamps
-```
-
-### 3. Clean API with DTO-Based Separation
-
-**Why DTOs?**
-- Decouples API contract from database schema
-- Enables backward compatibility during refactoring
-- Centralized validation at API boundary
-- Prevents accidental entity mutation exposure
-
-**Flow:**
-```
-HTTP Request
+Product Service (Event Producer)
     ↓
-ProductRequestDTO (validation)
+    ├── CREATED
+    ├── UPDATED
+    ├── DELETED
+    └── LOW_STOCK
     ↓
-ProductMapper (entity conversion)
+    Apache Kafka Topic: product-events
     ↓
-ProductService (business logic)
-    ↓
-Product (JPA entity)
-    ↓
-ProductMapper (back to DTO)
-    ↓
-ProductResponseDTO
-    ↓
-HTTP Response
+    Integration Service (Event Consumer)
 ```
 
-**Key Classes:**
-- `ProductRequestDTO`: Validates input (name, price, stock, etc.)
-- `ProductResponseDTO`: Formats response with event metadata
-- `ProductMapper`: Auto-generated MapStruct mapper
-- `PageResponseDTO`: Wraps paginated results
+**Event Publisher** (`ProductEventProducer`):
+- Publishes events to Kafka topic `product-events`
+- Captures product lifecycle events
+- JSON serialization for compatibility
 
-### 4. Exception Handling & Standardization
+**Event Consumer** (Integration Service):
+- Consumes product events from Kafka
+- Updates denormalized integration data
+- Handles event reconciliation
 
-**All errors return unified `ErrorResponse`:**
+**Complete Audit Trail**:
+- All product events stored in `audit_logs` table
+- Accessible via `/api/products/{id}/history` endpoint
+- Timestamps & tenant isolation included
 
+### DTO-Based API
+
+**Design Benefits**:
+- ✅ Backward compatibility - internal schema changes don't break clients
+- ✅ Clean contracts - explicit request/response shapes
+- ✅ Security - prevents accidental entity field exposure
+- ✅ Validation - DTO-level validation via Jakarta Bean Validation
+
+**Mapping Layer**:
+- MapStruct generates type-safe DTO ↔ Entity converters
+- Zero runtime reflection overhead
+- Compile-time error checking
+
+### Exception Handling
+
+**Standardized Error Response**:
 ```json
 {
-  "errorId": "UUID-for-tracking",
-  "status": "HTTP status code",
-  "error": "ERROR_CODE",
-  "message": "Human-readable description",
-  "timestamp": "ISO-8601 timestamp",
-  "path": "/api/products/...",
-  "fieldErrors": {"field": "error message"},
-  "traceId": "request-id-for-logging"
+  "timestamp": "2024-01-15T10:30:00Z",
+  "status": 404,
+  "error": "Product not found",
+  "message": "Product with ID 123 does not exist",
+  "path": "/api/products/123"
 }
 ```
 
-**Exception Hierarchy:**
-```
-AppException (base)
-  ├── ProductNotFoundException (404)
-  ├── ValidationException (400)
-  ├── BusinessException (400)
-  ├── ConflictException (409)
-  ├── UnauthorizedException (401)
-  └── TenantMissingException (403)
-```
+**Exception Hierarchy**:
+- `ResourceNotFoundException` → 404
+- `BadRequestException` → 400
+- `TenantViolationException` → 403
+- `InternalServerException` → 500
 
-**Global Handler:** `GlobalExceptionHandler` uses Spring's `@RestControllerAdvice` to catch and format all exceptions consistently.
-
-### 5. Data Access with Specifications
-
-**Pattern:** Spring Data JPA with Specifications for dynamic queries
-
-```
-ProductRepository
-  ├── extends JpaRepository
-  └── extends JpaSpecificationExecutor
-      └── ProductSpecification.java (dynamic predicates)
-```
-
-**Benefits:**
-- Type-safe query building
-- Reusable filter logic
-- Pagination and sorting support
-- Handles complex multi-tenant queries
-
-### 6. Code Quality & Testing
-
-**Tools:**
-- **JaCoCo**: Code coverage reporting
-- **SpotBugs**: Static bug detection (High confidence threshold)
-- **Checkstyle**: Code style enforcement
-- **Lombok**: Reduces boilerplate 95%
-
-**Testing Coverage:**
-- Unit tests for services and repositories
-- Integration tests with embedded Kafka/H2
-- Exception handling tests
-- Multi-tenant isolation tests
+**Global Exception Handler**: `GlobalExceptionHandler` in controller layer
 
 ---
 
-## Build & Quality Tools
+## Infrastructure & Services
 
-### Maven Plugin Configuration
+### Docker Compose Services
 
-```xml
-<!-- Parent POM defines versions and common plugins -->
-<properties>
-  <java.version>21</java.version>
-  <springdoc-openapi.version>2.0.0</springdoc-openapi.version>
-  <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
-  <spotbugs-maven-plugin.version>4.8.3.1</spotbugs-maven-plugin.version>
-  <maven-checkstyle-plugin.version>3.3.1</maven-checkstyle-plugin.version>
-</properties>
+```yaml
+Services:
+├── PostgreSQL (port 5432)
+│   └── Stores: products_db, integration_db
+├── Zookeeper (port 2181)
+│   └── Kafka coordination
+├── Apache Kafka (port 9092)
+│   └── Topic: product-events
+├── Ollama (port 11434)
+│   └── AI/ML model inference
+├── Product Service (port 8080)
+│   ├── Database: products_db
+│   └── Health: /actuator/health
+└── Integration Service (port 8081)
+    ├── Database: integration_db
+    └── Health: /actuator/health
 ```
 
-**Key Plugins:**
-- **maven-compiler-plugin**: Java 21 compilation with Lombok/MapStruct annotation processing
-- **spring-boot-maven-plugin**: Builds executable JAR and enables hot reload
-- **jacoco-maven-plugin**: Code coverage report generation (exec after tests)
-- **spotbugs-maven-plugin**: Static analysis (effort=Max, threshold=High)
-- **maven-checkstyle-plugin**: Code style verification against `checkstyle.xml`
+### Database Schema
 
-### Quality Check Commands
+**Product Service** (`products_db`):
+- `products` - Product entities with tenant isolation
+- `audit_logs` - Complete audit trail of all changes
+- `flyway_schema_history` - Migration tracking
 
+**Integration Service** (`integration_db`):
+- Integration-specific schemas (denormalized data)
+- Event tracking tables
+- Flyway migration history
+
+**Multi-Tenancy**: All tables include `tenant_id` column for data isolation
+
+---
+
+## Running the Services
+
+### Option 1: Docker Compose (Recommended)
+
+**Start all services**:
 ```bash
-# Run all tests with JaCoCo coverage
-mvn clean test
+docker-compose up --build
+```
 
-# Run tests + SpotBugs + code coverage report
-mvn clean verify
+**Service Availability**:
+- Product Service: http://localhost:8080
+- Integration Service: http://localhost:8081
+- PostgreSQL: localhost:5432
+- Kafka: localhost:9092
+- Ollama: http://localhost:11434
 
-# Run only SpotBugs analysis
-mvn spotbugs:check
+**Stop services**:
+```bash
+docker-compose down
+```
 
-# Run Checkstyle verification
-mvn checkstyle:check
+**Clean up volumes** (careful - deletes data):
+```bash
+docker-compose down -v
+```
 
-# Full build with all checks
+### Option 2: Local Development
+
+**Prerequisites**:
+- Java 21+
+- Maven 3.6+
+- PostgreSQL running on localhost:5432
+- Apache Kafka running on localhost:9092
+
+**Build**:
+```bash
 mvn clean package
-
-# Generate JaCoCo HTML report
-mvn jacoco:report
-# Report location: target/site/jacoco/index.html
 ```
 
-### CI/CD Integration
-
-Quality checks integrate with:
-- **Pre-commit hooks**: Run format/lint
-- **GitHub Actions** (`.github/workflows/`): Build, test, quality gates
-- **Docker builds**: Multi-stage for optimized images
-
----
-
-## Environment Configuration
-
-### Docker Compose Setup
-
-**File:** `.env` (root directory)
+**Run Product Service**:
 ```bash
-# Database
+cd product-service
+mvn spring-boot:run
+```
+
+**Run Integration Service**:
+```bash
+cd integration-service
+mvn spring-boot:run
+```
+
+### Database Configuration
+
+**Environment Variables** (.env or system):
+```bash
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_PORT=5432
-
-# Services
 PRODUCT_SERVICE_PORT=8080
 INTEGRATION_SERVICE_PORT=8081
 ```
 
-**Service Environment Variables** (set in `docker-compose.yml`):
-```yaml
-environment:
-  SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/products_db
-  SPRING_DATASOURCE_USERNAME: ${DB_USER}
-  SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-```
-
-### Local Development (Standalone)
-
-Create `local.env` or update `application.yml`:
-
+**Local Application Configuration** (application.yml):
 ```yaml
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/products_db
     username: postgres
     password: postgres
-    driver-class-name: org.postgresql.Driver
-  jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
   kafka:
     bootstrap-servers: localhost:9092
-    consumer:
-      group-id: product-service-group
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
-
-logging:
-  level:
-    com.example.productservice: DEBUG
-    org.springframework.web: INFO
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 ```
+
+### Kafka Topics
+
+**Auto-created Topics** (KAFKA_AUTO_CREATE_TOPICS_ENABLE: true):
+- `product-events` - All product lifecycle events
+
+**Topic Configuration**:
+- Replication Factor: 1 (configurable for production)
+- Partitions: 1 (default)
+- Retention: Broker default
+
+---
+
+## API Specification
+
+**Base Paths**:
+- Product Service: `/api/products`
+- Integration Service: `/api/integration`
+
+### Product Service Endpoints
+
+| Method | Endpoint | Description | Query Params |
+|--------|----------|-------------|--------------|
+| GET | `/api/products` | List all products | `page`, `size`, `sort` |
+| GET | `/api/products/{id}` | Get product by ID | — |
+| GET | `/api/products/{id}/history` | Get product audit history | `page`, `size` |
+| POST | `/api/products` | Create product | — |
+| PUT | `/api/products/{id}` | Update product | — |
+| DELETE | `/api/products/{id}` | Delete product | — |
+
+**Health Check**:
+- `GET /actuator/health` - Service health status
+- `GET /actuator/health/liveness` - Liveness probe
+- `GET /actuator/health/readiness` - Readiness probe
+
+**Required Headers**:
+- `X-Tenant-ID` - Tenant identifier (all API requests)
+
+**Response Format**: JSON (application/json)
+
+See **[API_CONTRACT.md](API_CONTRACT.md)** for complete API specifications, examples, and stability guarantees.
+
+---
+
+## Code Quality & Testing
+
+### Testing Strategy
+
+**Test Types**:
+1. **Unit Tests** - Business logic & service layer
+2. **Integration Tests** - API endpoints with H2 database
+3. **Kafka Tests** - Message producer/consumer verification
+
+**Testing Stack**:
+- JUnit 5 for test framework
+- Mockito for mocking
+- Spring Test for integration testing
+- H2 in-memory database for isolation
+
+### Running Tests
+
+**Run all tests with coverage**:
+```bash
+mvn clean test
+```
+
+**Run specific test class**:
+```bash
+mvn test -Dtest=ProductServiceTest
+```
+
+**Full verification** (tests + analysis + coverage):
+```bash
+mvn verify
+```
+
+**Generate coverage report**:
+```bash
+mvn jacoco:report
+# Report: target/site/jacoco/index.html
+```
+
+**Coverage Goals**:
+- Line Coverage: ≥ 80%
+- Branch Coverage: ≥ 75%
+- Excludes: DTOs, entities, configuration classes
+
+### Code Analysis
+
+**SpotBugs** (Bug detection):
+```bash
+mvn spotbugs:check
+```
+
+**Configuration**: High effort, High threshold  
+**Exclusions**: `spotbugs-exclude.xml`
+
+**Checkstyle** (Code style):
+Integrated with build, enforces Google Java Style Guide (with modifications)
+
+**Configuration**: `checkstyle.xml`
+
+### Build Plugins
+
+**Maven Plugins**:
+- `spring-boot-maven-plugin` - Create executable JARs
+- `maven-compiler-plugin` - Java 21 compilation
+- `jacoco-maven-plugin` - Code coverage (0.8.11)
+- `spotbugs-maven-plugin` - Bug analysis (4.8.3.1)
+
+---
+
+## Building & Deployment
+
+### Local Build
+
+**Build JAR files**:
+```bash
+mvn clean package
+```
+
+**Build without tests**:
+```bash
+mvn clean package -DskipTests
+```
+
+**Build specific module**:
+```bash
+mvn clean package -pl product-service
+```
+
+### Docker Build
+
+**Build all images**:
+```bash
+docker-compose build
+```
+
+**Build specific service**:
+```bash
+docker-compose build product-service
+```
+
+**Docker Images**:
+- `microservices:product-service:0.0.1-SNAPSHOT`
+- `microservices:integration-service:0.0.1-SNAPSHOT`
+
+### Dockerfile Details
+
+**Multi-stage Build**:
+1. **Build Stage**: Maven compiles code, runs tests
+2. **Runtime Stage**: Slim JRE 21, copies JAR from build
+
+**Optimization**:
+- Non-root user execution
+- Health checks configured
+- Environment variable pass-through
 
 ### Kubernetes Deployment
 
-**Files:** `k8s/*.yaml`
+**Deployment Files** (k8s/):
+- Namespace configuration
+- Service deployments with replicas
+- StatefulSets for PostgreSQL & Kafka
+- ConfigMap/Secrets for configuration
+- Ingress routing
+
+**Deploy to Kubernetes**:
 ```bash
-# Deploy to K8s
 ./k8s/deploy.sh
-
-# View deployments
-kubectl get deployments -n product-service
-
-# Check pods
-kubectl get pods -n product-service
-
-# View logs
-kubectl logs -f deployment/product-service -n product-service
 ```
 
----
-
-## Database Schema
-
-### Product Service Database
-
-**Table: `products`**
-```sql
-CREATE TABLE products (
-  id BIGSERIAL PRIMARY KEY,
-  tenant_id VARCHAR(255) NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  description TEXT NOT NULL,
-  category VARCHAR(100) NOT NULL,
-  price DECIMAL(12, 2) NOT NULL,
-  stock_quantity INTEGER NOT NULL,
-  event_type VARCHAR(50) NOT NULL,
-  event_time TIMESTAMP NOT NULL,
-  original_product_id BIGINT,
-  created_at TIMESTAMP NOT NULL,
-  updated_at TIMESTAMP NOT NULL,
-  
-  CONSTRAINT products_original_fk 
-    FOREIGN KEY (original_product_id) 
-    REFERENCES products(id)
-);
-
-CREATE INDEX idx_products_tenant_id ON products(tenant_id);
-CREATE INDEX idx_products_original_id ON products(original_product_id);
+**Remove from Kubernetes**:
+```bash
+./k8s/delete.sh
 ```
-
-**Columns:**
-- `id`: Primary key (auto-generated)
-- `tenant_id`: Multi-tenancy key (MANDATORY, every query filtered)
-- `name`: Product name (max 255 chars)
-- `description`: Product description (max 2000 chars)
-- `category`: Product category (max 100 chars)
-- `price`: Unit price (DECIMAL 12,2 = $999,999.99 max)
-- `stock_quantity`: Available units (Integer)
-- `event_type`: CREATED|UPDATED|DELETED|LOW_STOCK
-- `event_time`: When event occurred (audit timestamp)
-- `original_product_id`: Points to original version (null for first version)
-- `created_at`: Record creation (JPA managed)
-- `updated_at`: Last modification (JPA managed)
-
-### Database Migrations
-
-**Tool:** Flyway
-**Location:** `product-service/src/main/resources/db/migration/`
-**Pattern:** `V[version]__[description].sql`
-
-Example:
-```
-V001__initial_schema.sql    - Products table creation
-V002__add_indexes.sql       - Performance indexes
-V003__add_constraints.sql   - Foreign key constraints
-```
-
-**Auto-execution:**
-- Runs on application startup
-- Version tracking in `flyway_schema_history` table
-- Rollback prevention (no V000 versions)
-
-### Integration Service Database
-
-Separate schema for event consumption:
-```sql
-CREATE TABLE product_events (
-  id BIGSERIAL PRIMARY KEY,
-  product_id BIGINT NOT NULL,
-  event_type VARCHAR(50) NOT NULL,
-  event_data JSONB,
-  processed_at TIMESTAMP NOT NULL
-);
-```
-
----
-
-## Key Features & Design Patterns
-
-### Core Features
-✅ **Product CRUD**: Create, Read, Update, Delete with full validation  
-✅ **Multi-Tenancy**: Row-level isolation via tenant_id filtering  
-✅ **Audit Trail**: All product changes recorded with event metadata  
-✅ **Event Streaming**: Kafka integration for real-time event consumption  
-✅ **API Versioning**: DTOs enable backward compatibility during schema changes  
-
-### Code Quality
-✅ **Exception Standardization**: Unified ErrorResponse format across all endpoints  
-✅ **Input Validation**: Jakarta Bean Validation on DTOs  
-✅ **Code Coverage**: JaCoCo reports and CI/CD gates  
-✅ **Static Analysis**: SpotBugs high-confidence bug detection  
-✅ **Style Enforcement**: Checkstyle linting via Maven  
-
-### Testing Strategy
-✅ **Unit Tests**: Service and repository logic isolation  
-✅ **Integration Tests**: Embedded Kafka + H2 in-memory DB  
-✅ **Exception Tests**: Verify error codes and messages  
-✅ **Multi-Tenant Tests**: Ensure tenant isolation works correctly  
-✅ **Kafka Tests**: Event producer/consumer verification  
-
-### Deployment
-✅ **Docker**: Multi-stage builds for optimized images  
-✅ **Docker Compose**: Full stack (Kafka, PostgreSQL, services)  
-✅ **Kubernetes**: YAML manifests with ConfigMaps/Secrets  
-✅ **Health Checks**: Actuator endpoints for monitoring  
-✅ **Graceful Shutdown**: Clean resource release on termination  
-
-### Monitoring & Observability
-✅ **Actuator**: `/actuator/health` and metrics endpoints  
-✅ **Structured Logging**: Logback with JSON output capability  
-✅ **Request Tracing**: Unique request IDs in error responses  
-✅ **Performance Metrics**: JaCoCo coverage and SpotBugs reports  
 
 ---
 
 ## Development Workflow
 
-### Prerequisites
-1. Clone repository
-2. Install Java 21, Maven 3.6+, Docker
-3. Copy `.env.example` to `.env` (if needed)
+### Setting Up Local Environment
 
-### Development Loop
+1. **Clone repository**:
+   ```bash
+   git clone <repo-url>
+   cd product-service
+   ```
 
-**1. Start services locally**
-```bash
-# Option A: Full Docker stack
-docker-compose up -d
+2. **Install dependencies**:
+   ```bash
+   mvn dependency:download-sources
+   mvn dependency:resolve
+   ```
 
-# Option B: Local development with external DB
-# Start PostgreSQL and Kafka first, then:
-mvn spring-boot:run
+3. **Start infrastructure**:
+   ```bash
+   docker-compose up -d db kafka zookeeper ollama
+   ```
+
+4. **Create databases** (if needed):
+   ```bash
+   docker exec -it postgres-db psql -U postgres -f init-databases.sql
+   ```
+
+5. **Run services**:
+   ```bash
+   # Terminal 1
+   cd product-service && mvn spring-boot:run
+   
+   # Terminal 2
+   cd integration-service && mvn spring-boot:run
+   ```
+
+### Creating a Feature
+
+1. **Create feature branch**:
+   ```bash
+   git checkout -b feature/my-feature
+   ```
+
+2. **Implement feature** following code conventions:
+   - DTO-first API design
+   - Entity → DTO mapping via MapStruct
+   - Service layer business logic
+   - Repository with JPA Specifications
+   - Integration tests for new functionality
+
+3. **Run tests & checks**:
+   ```bash
+   mvn clean verify
+   ```
+
+4. **Fix any issues**:
+   - SpotBugs warnings → `spotbugs-exclude.xml` or fix code
+   - Checkstyle violations → Fix formatting
+   - Test coverage → Increase test coverage
+   - Code coverage < 80% → Add tests
+
+5. **Commit with clear message**:
+   ```bash
+   git commit -m "feat: add product filtering by category"
+   ```
+
+6. **Push & create PR**:
+   ```bash
+   git push origin feature/my-feature
+   ```
+
+### Code Conventions
+
+**Package Structure**:
+```
+com.example.productservice/
+├── controller/     REST endpoints
+├── service/        Business logic (interfaces + implementations)
+├── repository/     Data access
+├── model/          JPA entities
+├── dto/            Request/Response objects
+├── mapper/         MapStruct mappers
+├── kafka/          Event handling
+├── security/       Multi-tenancy
+├── exception/      Custom exceptions
+└── constant/       Constants & enums
 ```
 
-**2. Make your changes**
+**Naming**:
+- Classes: PascalCase (ProductService, ProductRepository)
+- Methods: camelCase (getProductById, createProduct)
+- Constants: UPPER_SNAKE_CASE (DEFAULT_PAGE_SIZE)
+- Database columns: snake_case (product_id, created_at)
 
-Follow these conventions:
-- **Code Style**: Follow existing patterns (see `checkstyle.xml`)
-- **No commented code**: Remove dead code
-- **DTOs for APIs**: Always expose DTOs, never entities
-- **Exception handling**: Use custom exceptions
-- **Multi-tenancy**: Always consider tenant isolation
-- **Kafka events**: Emit events for important state changes
-- **Tests**: Write tests alongside code
-
-Example structure:
-```
-feature: Add product sorting
-├── ProductSpecification.java (add sort criterion)
-├── SortBuilder.java (update if needed)
-├── ProductService.java (update logic)
-├── ProductRequestDTO.java (add sortBy field)
-├── ProductControllerIntegrationTest.java (test scenario)
-└── ProductServiceTest.java (test business logic)
+**Lombok Annotations**:
+```java
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@ToString(exclude = "password")
+@EqualsAndHashCode(of = "id")
+public class Product {
+    ...
+}
 ```
 
-**3. Run tests locally**
-```bash
-# Unit tests only
-mvn test
-
-# Full verification (tests + quality checks)
-mvn clean verify
-
-# Specific test class
-mvn test -Dtest=ProductServiceTest
-
-# Generate coverage report
-mvn jacoco:report
-# Open: target/site/jacoco/index.html
+**Validation** (DTOs):
+```java
+@NotNull
+@NotBlank
+@Positive
+@DecimalMin("0.0")
+@Size(min = 3, max = 255)
+@Email
+@Pattern(regexp = "...")
 ```
 
-**4. Commit & push**
-```bash
-git checkout -b feature/your-feature
-git add .
-git commit -m "feat: add product sorting"
-git push origin feature/your-feature
+**Exception Handling**:
+```java
+if (product == null) {
+    throw new ResourceNotFoundException("Product not found");
+}
 ```
-
-**5. Create pull request**
-
-PR template (if available):
-```markdown
-## Changes
-- Brief description of what changed
-
-## Type
-- [ ] Feature
-- [ ] Bug fix
-- [ ] Refactoring
-- [ ] Documentation
-
-## Testing
-- [ ] Tests added/updated
-- [ ] mvn clean verify passes
-- [ ] Manual testing done
-
-## Multi-tenancy Check
-- [ ] Tenant context considered
-- [ ] No cross-tenant data leakage
-
-## Breaking Changes
-- [ ] No breaking API changes
-- [ ] DTOs updated if needed
-```
-
-**6. Code review & merge**
-- All CI checks must pass
-- Code coverage acceptable
-- Approval from reviewers
 
 ---
 
-## Useful Commands Reference
+## Useful Commands
 
-### Maven Build
+### Docker Commands
+
 ```bash
-# Clean and package (build JAR)
-mvn clean package
+# View running containers
+docker-compose ps
 
-# Skip tests during build (only when necessary!)
-mvn clean package -DskipTests
-
-# Run only tests with coverage
-mvn clean test
-
-# Full verification with all checks
-mvn clean verify
-
-# Rebuild without cleaning
-mvn package
-```
-
-### Maven Quality Checks
-```bash
-# Run SpotBugs analysis
-mvn spotbugs:check
-
-# Run SpotBugs GUI
-mvn spotbugs:gui
-
-# Run Checkstyle verification
-mvn checkstyle:check
-
-# Generate JaCoCo coverage report
-mvn jacoco:report
-# Report location: target/site/jacoco/index.html
-
-# Run specific test class
-mvn test -Dtest=ProductServiceTest
-
-# Run test method
-mvn test -Dtest=ProductServiceTest#testCreateProduct
-```
-
-### Running Applications
-```bash
-# Run Product Service locally (requires Kafka + PostgreSQL)
-mvn spring-boot:run -pl product-service
-
-# Run Integration Service locally
-mvn spring-boot:run -pl integration-service
-
-# Run with custom profile
-mvn spring-boot:run -Dspring-boot.run.arguments="--spring.profiles.active=dev"
-```
-
-### Docker & Docker Compose
-```bash
-# Start all services
-docker-compose up -d
-
-# Start and rebuild images
-docker-compose up --build
-
-# View logs (all services)
-docker-compose logs -f
-
-# View specific service logs
+# View service logs
 docker-compose logs -f product-service
 docker-compose logs -f kafka
-docker-compose logs -f db
 
-# Stop all services
-docker-compose down
+# Access PostgreSQL
+docker exec -it postgres-db psql -U postgres -d products_db
+\dt                                    -- List tables
+SELECT * FROM products WHERE tenant_id = 'tenant1';
 
-# Stop and remove volumes
-docker-compose down -v
+# Kafka consumer
+docker exec -it kafka kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic product-events \
+  --from-beginning
+```
+
+### Maven Commands
+
+```bash
+# Dependency tree
+mvn dependency:tree
+
+# Update dependencies
+mvn versions:display-dependency-updates
+
+# Clean build
+mvn clean install
+
+# Skip tests
+mvn clean package -DskipTests
+
+# Run single test
+mvn test -Dtest=ProductServiceTest#testCreateProduct
+
+# Debug mode
+mvn -X clean verify
+```
+
+### Useful Endpoints
+
+```bash
+# Product Service
+curl -H "X-Tenant-ID: tenant1" http://localhost:8080/api/products
 
 # Health check
-docker-compose ps
-```
+curl http://localhost:8080/actuator/health
 
-### Database & PostgreSQL
-```bash
-# Connect to PostgreSQL
-docker exec -it postgres-db psql -U postgres -d products_db
+# Actuator metrics
+curl http://localhost:8080/actuator/metrics
 
-# Useful SQL queries
-# List all tables
-\dt
-
-# View product history for tenant
-SELECT * FROM products WHERE tenant_id = 'tenant-001' ORDER BY event_time DESC;
-
-# Count products by event type
-SELECT event_type, COUNT(*) FROM products GROUP BY event_type;
-
-# Exit psql
-\q
-```
-
-### Kafka & Messaging
-```bash
-# View Kafka logs
-docker-compose logs -f kafka
-
-# View Zookeeper logs
-docker-compose logs -f zookeeper
-
-# Check if Kafka is healthy
-docker exec kafka kafka-broker-api-versions.sh --bootstrap-server kafka:9092
-
-# List Kafka topics
-docker exec kafka kafka-topics.sh --list --bootstrap-server kafka:9092
-
-# View messages from topic
-docker exec kafka kafka-console-consumer.sh \
-  --topic products-events \
-  --from-beginning \
-  --bootstrap-server kafka:9092
-```
-
-### Development Shortcuts
-```bash
-# Clean all compiled classes and test results
-mvn clean
-
-# Format code (if formatter configured)
-mvn fmt:format
-
-# Install without running tests
-mvn install -DskipTests
-
-# Skip javadoc generation
-mvn clean package -Dspringboot.build.skipTests=true
-
-# Rebuild dependency tree
-mvn dependency:tree
+# Integration Service Health
+curl http://localhost:8081/actuator/health
 ```
 
 ---
 
-## API Documentation
+## Monitoring & Observability
 
-Complete API specifications: **[API_CONTRACT.md](API_CONTRACT.md)**
+### Health Checks
 
-Includes:
-- Endpoint documentation (GET/POST/PUT/DELETE)
-- Request/response JSON examples
-- Validation rules and constraints
-- Error codes and scenarios
-- Tenant context requirements
-- Audit trail tracking details
-- API stability & backward compatibility guarantees
+**Product Service Health**:
+```
+GET http://localhost:8080/actuator/health
+```
 
-### Quick API Reference
+**Response**:
+```json
+{
+  "status": "UP",
+  "components": {
+    "db": { "status": "UP" },
+    "kafka": { "status": "UP" },
+    "livenessState": { "status": "UP" },
+    "readinessState": { "status": "UP" }
+  }
+}
+```
 
-**Base Path:** `/api/products`
+### Metrics
 
-| Endpoint | Method | Status | Purpose |
-|----------|--------|--------|---------|
-| `/` | GET | 200 | List all products (paginated) |
-| `/{id}` | GET | 200/404 | Get product by ID |
-| `/{id}/history` | GET | 200/404 | Get product audit history |
-| `/` | POST | 201/400 | Create product |
-| `/{id}` | PUT | 200/400/404 | Update product |
-| `/{id}` | DELETE | 204/404 | Delete product |
+**Available Endpoints**:
+- `/actuator/metrics` - All metrics
+- `/actuator/metrics/jvm.memory.used` - JVM memory
+- `/actuator/metrics/http.server.requests` - Request metrics
 
-**Health Check:** `GET /actuator/health`
+### Logging
 
----
+**Configuration**: `src/main/resources/logback-spring.xml`
 
-## Related Documentation
+**Log Levels**:
+```yaml
+logging:
+  level:
+    root: INFO
+    com.example.productservice: DEBUG
+    org.springframework.kafka: WARN
+    org.hibernate: WARN
+```
 
-- **[API_CONTRACT.md](API_CONTRACT.md)**: Comprehensive API specification, validation rules, error scenarios
-- **[README.md](README.md)**: Quick start guide with setup instructions
-- **[docker-compose.yml](docker-compose.yml)**: Service orchestration and networking
-- **[pom.xml](pom.xml)**: Maven dependencies and build configuration
+### Audit Trail
+
+**Access Product History**:
+```bash
+GET http://localhost:8080/api/products/{id}/history
+```
+
+**Returns**: Chronological list of all changes with timestamps
 
 ---
 
 ## Troubleshooting
 
-### Service Won't Start
-1. Check port availability (8080 for product-service, 8081 for integration-service)
-2. Verify PostgreSQL and Kafka are running: `docker-compose ps`
-3. Check logs: `docker-compose logs -f product-service`
+### Common Issues
 
-### Kafka Connection Issues
+**PostgreSQL Connection Failed**:
+1. Check container is running: `docker-compose ps`
+2. Verify environment variables in docker-compose.yml
+3. Check logs: `docker-compose logs db`
+
+**Kafka Connection Issues**:
+1. Ensure Zookeeper started first (health check waits)
+2. Verify KAFKA_ADVERTISED_LISTENERS = PLAINTEXT://kafka:9092
+3. Check Kafka logs: `docker-compose logs kafka`
+
+**Application Port Already in Use**:
+1. Change port in docker-compose.yml or .env
+2. Or kill process: `lsof -i :8080` then `kill -9 <PID>`
+
+**Tests Failing with H2 Database**:
+1. Clear target directory: `mvn clean`
+2. H2 schema differences - update test configuration
+3. Check test @Configuration classes override main config
+
+**SpotBugs False Positives**:
+1. Add exclusion to `spotbugs-exclude.xml`
+2. Or add `@SuppressFBWarnings("...")` annotation
+3. Document reason for exclusion
+
+---
+
+## Security Considerations
+
+### Multi-Tenancy Security
+
+✅ **Implemented**:
+- Tenant ID extracted from HTTP header
+- Thread-local storage prevents cross-tenant leaks
+- All queries filtered by tenant ID
+- Database-level isolation
+
+⚠️ **Important**:
+- X-Tenant-ID header should be set by gateway/API (not client)
+- Validate tenant ID format & authorization
+- Regularly audit tenant data access
+
+### Password & Secrets
+
+**Storage**:
+- Sensitive configs in environment variables
+- Use Kubernetes Secrets for production
+- Never commit .env files or credentials
+
+**Database Passwords**:
+- Use strong passwords in production
+- Rotate periodically
+- Use managed database services in cloud
+
+### SQL Injection Prevention
+
+✅ **Mitigated by**:
+- JPA parameterized queries (no string concatenation)
+- Specifications API for dynamic queries
+- Spring Data JPA handles all SQL
+
+### Input Validation
+
+✅ **Implemented**:
+- DTO-level validation (Jakarta Bean Validation)
+- @NotNull, @NotBlank, @Size constraints
+- Custom validators for business rules
+- Global exception handler returns 400 for validation errors
+
+---
+
+## CI/CD Pipeline
+
+**GitHub Actions** (.github/workflows/):
+- Automated testing on push
+- SpotBugs & Checkstyle checks
+- Build Docker images
+- Push to registry
+- Deploy to staging/production
+
+**Local Pre-commit**:
 ```bash
-# Verify Kafka is healthy
-docker exec kafka kafka-broker-api-versions.sh --bootstrap-server kafka:9092
-
-# Check topics exist
-docker exec kafka kafka-topics.sh --list --bootstrap-server kafka:9092
+# Add pre-commit hook
+npm install husky --save-dev
+npx husky install
+# Or manually: mvn clean verify before pushing
 ```
 
-### Database Connection Errors
-```bash
-# Connect to PostgreSQL and verify databases
-docker exec -it postgres-db psql -U postgres
+---
 
-# List databases
-\l
+## Performance Optimization
 
-# Connect to products_db
-\c products_db
+### Database
 
-# List tables
-\dt
-```
+- **Indexes**: On `tenant_id`, `id`, frequently queried fields
+- **Pagination**: All list endpoints support pagination
+- **Connection Pooling**: HikariCP configured in application.yml
 
-### Test Failures
-```bash
-# Run with verbose output
-mvn test -e -X
+### Caching
 
-# Run specific failing test
-mvn test -Dtest=ProductServiceTest#testMethod
-```
+- **Spring Cache**: Can be enabled with @Cacheable annotations
+- **Kafka**: Event batching for throughput
+
+### Monitoring
+
+- **JaCoCo**: Identify untested code paths
+- **Spring Actuator**: Monitor request metrics
+- **Logs**: Debug slow queries with Hibernate statistics
 
 ---
 
-## Version History
+## Future Enhancements
 
-| Version | Date | Status | Key Changes |
-|---------|------|--------|------------|
-| 0.0.1-SNAPSHOT | Current | Active | Initial multi-tenant architecture with Kafka |
-
----
-
-## Contributing Guidelines
-
-1. **Code Quality First**: All changes must pass `mvn clean verify`
-2. **Test Coverage**: Write tests for new features
-3. **No Breaking Changes**: Use DTOs to ensure API stability
-4. **Tenant Awareness**: Always consider multi-tenancy implications
-5. **Documentation**: Update docs when APIs change
+1. **API Gateway**: Kong or Spring Cloud Gateway for cross-cutting concerns
+2. **Service Mesh**: Istio for traffic management
+3. **Distributed Tracing**: Sleuth + Zipkin integration
+4. **API Versioning**: Header-based or URL path versioning
+5. **GraphQL**: Alternative to REST API
+6. **Caching Layer**: Redis for distributed caching
+7. **Search Engine**: Elasticsearch for full-text search
+8. **Rate Limiting**: Per-tenant API rate limits
+9. **OAuth2/OIDC**: External identity provider integration
+10. **Message Queue**: RabbitMQ alternative to Kafka
 
 ---
 
-## License
+## Useful References
 
-Proprietary - Unauthorized copying prohibited
+- **[README.md](README.md)** - Quick start guide
+- **[API_CONTRACT.md](API_CONTRACT.md)** - Complete API specification
+- [Spring Boot 3.2 Documentation](https://spring.io/projects/spring-boot)
+- [Spring Data JPA Guide](https://spring.io/projects/spring-data-jpa)
+- [Apache Kafka Documentation](https://kafka.apache.org/documentation/)
+- [MapStruct User Guide](https://mapstruct.org/)
+- [Flyway Documentation](https://flywaydb.org/documentation/)
 
 ---
 
-## Support & Contact
-
-- **Issues**: GitHub Issues (if public) or internal ticket system
-- **Documentation**: See markdown files in repository root
-- **Architecture Questions**: See Architecture Highlights section above
+**Last Updated**: 2024-01-15  
+**Version**: 0.0.1-SNAPSHOT
