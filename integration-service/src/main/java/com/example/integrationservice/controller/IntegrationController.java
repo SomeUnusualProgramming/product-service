@@ -4,19 +4,24 @@ import com.example.integrationservice.dto.*;
 import com.example.integrationservice.service.AiMappingService;
 import com.example.integrationservice.service.BatchMappingService;
 import com.example.integrationservice.service.FileParserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/integration")
+@RequestMapping(value = "/api/integration", produces = "application/json")
 public class IntegrationController {
+    private static final Logger logger = LoggerFactory.getLogger(IntegrationController.class);
     private final AiMappingService aiMappingService;
     private final FileParserService fileParserService;
     private final BatchMappingService batchMappingService;
@@ -173,19 +178,24 @@ public class IntegrationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PostMapping("/file/upload")
-    public ResponseEntity<FileUploadDto> uploadFile(@RequestParam MultipartFile file) {
+    @PostMapping(value = "/file/upload", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> uploadFile(@RequestParam MultipartFile file) {
         try {
+            logger.info("File upload started - filename: {}, size: {}", file.getOriginalFilename(), file.getSize());
+            
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null) {
-                return ResponseEntity.badRequest().build();
+                logger.warn("Upload failed - filename is null");
+                return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON).build();
             }
 
             List<Map<String, Object>> rows = fileParserService.parseFile(file);
+            logger.info("File parsed successfully - rows: {}", rows.size());
+            
             Map<String, String> schema = fileParserService.detectSchema(rows);
             List<Map<String, Object>> samples = fileParserService.getSampleRows(rows, 5);
 
-            FileUploadDto response = FileUploadDto.builder()
+            FileUploadDto dto = FileUploadDto.builder()
                     .fileName(originalFilename)
                     .fileType(originalFilename.substring(originalFilename.lastIndexOf('.') + 1))
                     .detectedSchema(schema)
@@ -193,14 +203,17 @@ public class IntegrationController {
                     .totalRows(rows.size())
                     .build();
 
-            return ResponseEntity.ok(response);
+            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(dto);
+            logger.info("File upload completed successfully");
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            logger.error("File upload failed", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON).body("{\"error\":\"upload_failed\"}");
         }
     }
 
-    @PostMapping("/batch/map")
-    public ResponseEntity<BatchMappingResultDto> batchMap(
+    @PostMapping(value = "/batch/map", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> batchMap(
             @RequestParam MultipartFile file,
             @RequestParam("target_schema") String targetSchema,
             @RequestParam("mapping_rules") String mappingRules
@@ -208,7 +221,7 @@ public class IntegrationController {
         try {
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null) {
-                return ResponseEntity.badRequest().build();
+                return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON).body("{\"error\":\"Filename is null\"}");
             }
 
             List<Map<String, Object>> rows = fileParserService.parseFile(file);
@@ -222,9 +235,14 @@ public class IntegrationController {
                     mappingRules
             );
 
-            return ResponseEntity.ok(result);
+            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(result);
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            logger.error("Batch mapping error", e);
+            String err = String.format("{\"error\":\"%s\",\"timestamp\":\"%s\"}",
+                    e.getMessage() != null ? e.getMessage().replaceAll("\"", "\\\"") : "An error occurred during batch mapping",
+                    LocalDateTime.now().toString());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON).body(err);
         }
     }
 

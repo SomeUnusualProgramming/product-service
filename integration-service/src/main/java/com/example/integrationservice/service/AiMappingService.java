@@ -9,6 +9,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
@@ -90,13 +91,29 @@ public class AiMappingService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         log.debug("Calling Ollama API at: {}", url);
-        Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
+        try {
+            Object response = restTemplate.postForObject(url, entity, Object.class);
 
-        if (response != null && response.containsKey("response")) {
-            return response.get("response").toString();
+            if (response instanceof Map) {
+                Map<String, Object> responseMap = (Map<String, Object>) response;
+                if (responseMap.containsKey("response")) {
+                    return responseMap.get("response").toString();
+                }
+                throw new RuntimeException("Invalid response from Ollama API: missing 'response' field");
+            } else if (response instanceof String) {
+                String responseStr = (String) response;
+                if (responseStr.startsWith("<")) {
+                    throw new RuntimeException("Ollama returned HTML instead of JSON. The service may be unavailable or misconfigured.");
+                }
+                throw new RuntimeException("Unexpected response format from Ollama API: " + responseStr);
+            }
+
+            throw new RuntimeException("Invalid response from Ollama API: unexpected type " + response.getClass().getSimpleName());
+        } catch (RestClientException e) {
+            log.error("Failed to connect to Ollama API at {}: {}", url, e.getMessage());
+            throw new RuntimeException("Ollama service is unavailable at " + url + ". Ensure the service is running and the model '" + ollamaModel + "' is downloaded. " +
+                    "Run 'ollama pull " + ollamaModel + "' to download the model.", e);
         }
-
-        throw new RuntimeException("Invalid response from Ollama API");
     }
 
     private String buildMappingPrompt(MappingRequestDto request) throws Exception {
