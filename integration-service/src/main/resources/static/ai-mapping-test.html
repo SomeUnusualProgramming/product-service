@@ -372,7 +372,16 @@
                 },
                 body: JSON.stringify(request)
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+                    }).catch(err => {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 document.getElementById('response').value = JSON.stringify(data, null, 2);
 
