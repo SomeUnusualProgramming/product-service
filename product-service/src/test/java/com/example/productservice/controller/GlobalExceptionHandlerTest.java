@@ -1,7 +1,6 @@
 // language: java
 package com.example.productservice.controller;
 
-import com.example.productservice.exception.ProductNotFoundException;
 import com.example.productservice.kafka.ProductProducer;
 import com.example.productservice.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;

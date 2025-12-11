@@ -1,7 +1,6 @@
 package com.example.productservice.filter;
 
 import com.example.productservice.dto.ErrorResponse;
-import com.example.productservice.exception.TenantMissingException;
 import com.example.productservice.security.TenantContext;
 import com.example.productservice.security.TenantValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;

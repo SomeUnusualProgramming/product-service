@@ -18,12 +18,12 @@ import java.util.*;
 @Slf4j
 @Service
 public class FileParserService {
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper jsonMapper;
     private final XmlMapper xmlMapper;
 
-    public FileParserService(ObjectMapper objectMapper, XmlMapper xmlMapper) {
-        this.objectMapper = objectMapper;
-        this.xmlMapper = xmlMapper;
+    public FileParserService() {
+        this.jsonMapper = new ObjectMapper();
+        this.xmlMapper = new XmlMapper();
     }
 
     public List<Map<String, Object>> parseFile(MultipartFile file) throws Exception {
@@ -53,7 +53,7 @@ public class FileParserService {
 
         try (InputStream in = file.getInputStream();
              BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
-             CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT.withFirstRecordAsHeader())) {
+             CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT.withHeader())) {
 
             for (CSVRecord record : csvParser) {
                 Map<String, Object> row = new LinkedHashMap<>(record.toMap());
@@ -66,7 +66,7 @@ public class FileParserService {
 
     private List<Map<String, Object>> parseJSON(MultipartFile file) throws Exception {
         try (InputStream in = file.getInputStream()) {
-            Object parsed = objectMapper.readValue(in, Object.class);
+            Object parsed = jsonMapper.readValue(in, Object.class);
 
             if (parsed instanceof List) {
                 //noinspection unchecked
@@ -116,8 +116,7 @@ public class FileParserService {
             return "BigDecimal";
         } else if (value instanceof Boolean) {
             return "Boolean";
-        } else if (value instanceof String) {
-            String str = (String) value;
+        } else if (value instanceof String str) {
             if (str.matches("\\d{4}-\\d{2}-\\d{2}.*")) {
                 return "LocalDateTime";
             }

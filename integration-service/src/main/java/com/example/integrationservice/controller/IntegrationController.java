@@ -4,19 +4,24 @@ import com.example.integrationservice.dto.*;
 import com.example.integrationservice.service.AiMappingService;
 import com.example.integrationservice.service.BatchMappingService;
 import com.example.integrationservice.service.FileParserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/integration")
+@RequestMapping(value = "/api/integration", produces = "application/json")
 public class IntegrationController {
+    private static final Logger logger = LoggerFactory.getLogger(IntegrationController.class);
     private final AiMappingService aiMappingService;
     private final FileParserService fileParserService;
     private final BatchMappingService batchMappingService;
@@ -58,11 +63,11 @@ public class IntegrationController {
                     <div class="section">
                         <h2>Status & Health</h2>
                         <div class="endpoint">
-                            <span class="method get">GET</span> <a href="/api/integration/status">/api/integration/status</a>
+                            <span class="method get">GET</span> <a href="/api/integration/status" target="_blank">/api/integration/status</a>
                             <div class="description">Service status and version info</div>
                         </div>
                         <div class="endpoint">
-                            <span class="method get">GET</span> <a href="/api/integration/health/detailed">/api/integration/health/detailed</a>
+                            <span class="method get">GET</span> <a href="/api/integration/health/detailed" target="_blank">/api/integration/health/detailed</a>
                             <div class="description">Detailed health check (database, kafka, product-service)</div>
                         </div>
                     </div>
@@ -72,7 +77,7 @@ public class IntegrationController {
                         <div class="endpoint">
                             <span class="method post">POST</span> /api/integration/file/upload
                             <div class="description">Upload and parse file (CSV, JSON, Excel) with schema detection</div>
-                            <div class="description" style="margin-top: 10px;"><a href="/file-mapping.html">→ Test File Upload</a></div>
+                            <div class="description" style="margin-top: 10px;"><a href="/file-mapping.html" target="_blank">→ Test File Upload</a></div>
                         </div>
                         <div class="endpoint">
                             <span class="method post">POST</span> /api/integration/batch/map
@@ -89,7 +94,7 @@ public class IntegrationController {
                         <div class="endpoint">
                             <span class="method post">POST</span> /api/integration/ai/map
                             <div class="description">Map data using AI-powered field mapping</div>
-                            <div class="description" style="margin-top: 10px;"><a href="/ai-mapping-test.html">→ Test AI Mapping</a></div>
+                            <div class="description" style="margin-top: 10px;"><a href="/ai-mapping-test.html" target="_blank">→ Test AI Mapping</a></div>
                         </div>
                     </div>
                     
@@ -113,7 +118,7 @@ public class IntegrationController {
                         <h2>External Services</h2>
                         <div class="endpoint">
                             <span style="color: #666; font-weight: bold;">Product Service:</span>
-                            <a href="http://localhost:8080/api/products">http://localhost:8080/api/products</a>
+                            <a href="http://localhost:8080" target="_blank">http://localhost:8080</a>
                         </div>
                     </div>
                 </div>
@@ -173,19 +178,24 @@ public class IntegrationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PostMapping("/file/upload")
-    public ResponseEntity<FileUploadDto> uploadFile(@RequestParam("file") MultipartFile file) {
+    @PostMapping(value = "/file/upload", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> uploadFile(@RequestParam MultipartFile file) {
         try {
+            logger.info("File upload started - filename: {}, size: {}", file.getOriginalFilename(), file.getSize());
+            
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null) {
-                return ResponseEntity.badRequest().build();
+                logger.warn("Upload failed - filename is null");
+                return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON).build();
             }
 
             List<Map<String, Object>> rows = fileParserService.parseFile(file);
+            logger.info("File parsed successfully - rows: {}", rows.size());
+            
             Map<String, String> schema = fileParserService.detectSchema(rows);
             List<Map<String, Object>> samples = fileParserService.getSampleRows(rows, 5);
 
-            FileUploadDto response = FileUploadDto.builder()
+            FileUploadDto dto = FileUploadDto.builder()
                     .fileName(originalFilename)
                     .fileType(originalFilename.substring(originalFilename.lastIndexOf('.') + 1))
                     .detectedSchema(schema)
@@ -193,22 +203,25 @@ public class IntegrationController {
                     .totalRows(rows.size())
                     .build();
 
-            return ResponseEntity.ok(response);
+            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(dto);
+            logger.info("File upload completed successfully");
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            logger.error("File upload failed", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON).body("{\"error\":\"upload_failed\"}");
         }
     }
 
-    @PostMapping("/batch/map")
-    public ResponseEntity<BatchMappingResultDto> batchMap(
-            @RequestParam("file") MultipartFile file,
+    @PostMapping(value = "/batch/map", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> batchMap(
+            @RequestParam MultipartFile file,
             @RequestParam("target_schema") String targetSchema,
             @RequestParam("mapping_rules") String mappingRules
     ) {
         try {
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null) {
-                return ResponseEntity.badRequest().build();
+                return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON).body("{\"error\":\"Filename is null\"}");
             }
 
             List<Map<String, Object>> rows = fileParserService.parseFile(file);
@@ -222,16 +235,21 @@ public class IntegrationController {
                     mappingRules
             );
 
-            return ResponseEntity.ok(result);
+            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(result);
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            logger.error("Batch mapping error", e);
+            String err = String.format("{\"error\":\"%s\",\"timestamp\":\"%s\"}",
+                    e.getMessage() != null ? e.getMessage().replaceAll("\"", "\\\"") : "An error occurred during batch mapping",
+                    LocalDateTime.now().toString());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON).body(err);
         }
     }
 
     @GetMapping("/batch/{batchId}/download")
     public ResponseEntity<String> downloadBatch(
             @PathVariable String batchId,
-            @RequestParam(value = "format", defaultValue = "json") String format
+            @RequestParam(defaultValue = "json") String format
     ) {
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=\"batch-" + batchId + "." + format + "\"")

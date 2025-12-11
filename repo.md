@@ -699,8 +699,11 @@ mvn -X clean verify
 ### Useful Endpoints
 
 ```bash
-# Product Service
-curl -H "X-Tenant-ID: tenant1" http://localhost:8080/api/products
+# Product Service (UI)
+open http://localhost:8080
+
+# Product Service (API)
+curl -H "X-Tenant-Id: tenant1" http://localhost:8080/api/products
 
 # Health check
 curl http://localhost:8080/actuator/health

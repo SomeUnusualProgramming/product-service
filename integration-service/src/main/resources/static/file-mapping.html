@@ -495,7 +495,21 @@
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    // Handle error responses - try to parse as JSON, fallback to text
+                    return response.text().then(text => {
+                        try {
+                            const data = JSON.parse(text);
+                            throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+                        } catch (e) {
+                            // If not JSON, just use the status
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 fileData = data;
                 displayFileInfo(data);
@@ -551,7 +565,21 @@
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    // Handle error responses - try to parse as JSON, fallback to text
+                    return response.text().then(text => {
+                        try {
+                            const data = JSON.parse(text);
+                            throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+                        } catch (e) {
+                            // If not JSON, just use the status
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 mappingResult = data;
                 displayResults(data);
