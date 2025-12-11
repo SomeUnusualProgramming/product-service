@@ -9,12 +9,12 @@ import org.springframework.web.client.RestTemplate;
 @Configuration
 public class RestTemplateConfig {
     @Bean
-    public RestTemplate restTemplate(RestTemplateBuilder builder) {
+    RestTemplate restTemplate(RestTemplateBuilder builder) {
         return builder.build();
     }
 
     @Bean
-    public XmlMapper xmlMapper() {
+    XmlMapper xmlMapper() {
         return new XmlMapper();
     }
 }

@@ -116,8 +116,7 @@ public class FileParserService {
             return "BigDecimal";
         } else if (value instanceof Boolean) {
             return "Boolean";
-        } else if (value instanceof String) {
-            String str = (String) value;
+        } else if (value instanceof String str) {
             if (str.matches("\\d{4}-\\d{2}-\\d{2}.*")) {
                 return "LocalDateTime";
             }
