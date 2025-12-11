@@ -10,7 +10,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @Slf4j
@@ -26,15 +28,20 @@ public class FileParserService {
 
     public List<Map<String, Object>> parseFile(MultipartFile file) throws Exception {
         String filename = file.getOriginalFilename();
-        if (filename == null) {
+        if (filename == null || filename.isBlank()) {
             throw new IllegalArgumentException("Invalid file");
         }
 
-        if (filename.endsWith(".csv")) {
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("File is empty: " + filename);
+        }
+
+        String lower = filename.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".csv")) {
             return parseCSV(file);
-        } else if (filename.endsWith(".json")) {
+        } else if (lower.endsWith(".json")) {
             return parseJSON(file);
-        } else if (filename.endsWith(".xml")) {
+        } else if (lower.endsWith(".xml")) {
             return parseXML(file);
         } else {
             throw new IllegalArgumentException("Unsupported file format: " + filename);
@@ -44,7 +51,8 @@ public class FileParserService {
     private List<Map<String, Object>> parseCSV(MultipartFile file) throws Exception {
         List<Map<String, Object>> rows = new ArrayList<>();
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
+        try (InputStream in = file.getInputStream();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
              CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT.withFirstRecordAsHeader())) {
 
             for (CSVRecord record : csvParser) {
@@ -57,26 +65,30 @@ public class FileParserService {
     }
 
     private List<Map<String, Object>> parseJSON(MultipartFile file) throws Exception {
-        String content = new String(file.getBytes());
-        Object parsed = objectMapper.readValue(content, Object.class);
+        try (InputStream in = file.getInputStream()) {
+            Object parsed = objectMapper.readValue(in, Object.class);
 
-        if (parsed instanceof List) {
-            return (List<Map<String, Object>>) parsed;
-        } else if (parsed instanceof Map) {
-            return List.of((Map<String, Object>) parsed);
-        } else {
-            throw new IllegalArgumentException("JSON must be an array or object");
+            if (parsed instanceof List) {
+                //noinspection unchecked
+                return (List<Map<String, Object>>) parsed;
+            } else if (parsed instanceof Map) {
+                //noinspection unchecked
+                return List.of((Map<String, Object>) parsed);
+            } else {
+                throw new IllegalArgumentException("JSON must be an array or object");
+            }
         }
     }
 
     private List<Map<String, Object>> parseXML(MultipartFile file) throws Exception {
-        String content = new String(file.getBytes());
-        Map<String, Object> parsed = xmlMapper.readValue(content, Map.class);
-        return List.of(parsed);
+        try (InputStream in = file.getInputStream()) {
+            Map<String, Object> parsed = xmlMapper.readValue(in, Map.class);
+            return List.of(parsed);
+        }
     }
 
     public Map<String, String> detectSchema(List<Map<String, Object>> rows) {
-        if (rows.isEmpty()) {
+        if (rows == null || rows.isEmpty()) {
             return new HashMap<>();
         }
 
@@ -123,6 +135,7 @@ public class FileParserService {
     }
 
     public List<Map<String, Object>> getSampleRows(List<Map<String, Object>> rows, int sampleSize) {
+        if (rows == null) return Collections.emptyList();
         int size = Math.min(sampleSize, rows.size());
         return rows.subList(0, size);
     }
