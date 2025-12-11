@@ -20,6 +20,10 @@ spring:
       auto-offset-reset: earliest
     producer:
       acks: all
+  mvc:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 kafka:
   listener:
@@ -27,6 +31,10 @@ kafka:
 
 server:
   port: 8081
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 ollama:
   host: ${OLLAMA_HOST:http://localhost:11434}
