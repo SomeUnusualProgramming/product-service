@@ -101,13 +101,23 @@ public class AiMappingService {
 
     private String buildMappingPrompt(MappingRequestDto request) throws Exception {
         return String.format(
-                "You are a data mapping expert. Map the following source data to the target schema.\n\n" +
-                "SOURCE SCHEMA:\n%s\n\n" +
-                "TARGET SCHEMA:\n%s\n\n" +
-                "SOURCE DATA:\n%s\n\n" +
-                "MAPPING RULES:\n%s\n\n" +
-                "Transform the source data according to the target schema and mapping rules. " +
-                "Return ONLY valid JSON that matches the target schema. No explanation needed.",
+                """
+                You are a data mapping expert. Map the following source data to the target schema.
+                
+                SOURCE SCHEMA:
+                %s
+                
+                TARGET SCHEMA:
+                %s
+                
+                SOURCE DATA:
+                %s
+                
+                MAPPING RULES:
+                %s
+                
+                Transform the source data according to the target schema and mapping rules. \
+                Return ONLY valid JSON that matches the target schema. No explanation needed.""",
                 request.getSourceSchema(),
                 request.getTargetSchema(),
                 objectMapper.writeValueAsString(request.getSourceData()),

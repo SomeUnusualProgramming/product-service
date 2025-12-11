@@ -174,7 +174,7 @@ public class IntegrationController {
     }
 
     @PostMapping("/file/upload")
-    public ResponseEntity<FileUploadDto> uploadFile(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<FileUploadDto> uploadFile(@RequestParam MultipartFile file) {
         try {
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null) {
@@ -201,7 +201,7 @@ public class IntegrationController {
 
     @PostMapping("/batch/map")
     public ResponseEntity<BatchMappingResultDto> batchMap(
-            @RequestParam("file") MultipartFile file,
+            @RequestParam MultipartFile file,
             @RequestParam("target_schema") String targetSchema,
             @RequestParam("mapping_rules") String mappingRules
     ) {
@@ -231,7 +231,7 @@ public class IntegrationController {
     @GetMapping("/batch/{batchId}/download")
     public ResponseEntity<String> downloadBatch(
             @PathVariable String batchId,
-            @RequestParam(value = "format", defaultValue = "json") String format
+            @RequestParam(defaultValue = "json") String format
     ) {
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=\"batch-" + batchId + "." + format + "\"")
