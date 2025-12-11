@@ -113,7 +113,7 @@ public class IntegrationController {
                         <h2>External Services</h2>
                         <div class="endpoint">
                             <span style="color: #666; font-weight: bold;">Product Service:</span>
-                            <a href="http://localhost:8080/api/products" target="_blank">http://localhost:8080/api/products</a>
+                            <a href="http://localhost:8080" target="_blank">http://localhost:8080</a>
                         </div>
                     </div>
                 </div>
