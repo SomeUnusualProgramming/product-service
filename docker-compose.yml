@@ -89,6 +89,13 @@ services:
       timeout: 10s
       retries: 20
       start_period: 30s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   integration-service:
     build:
