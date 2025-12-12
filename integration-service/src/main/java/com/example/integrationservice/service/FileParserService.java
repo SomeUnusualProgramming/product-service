@@ -21,8 +21,8 @@ public class FileParserService {
     private final ObjectMapper jsonMapper;
     private final XmlMapper xmlMapper;
 
-    public FileParserService() {
-        this.jsonMapper = new ObjectMapper();
+    public FileParserService(ObjectMapper objectMapper) {
+        this.jsonMapper = objectMapper;
         this.xmlMapper = new XmlMapper();
     }
 
@@ -36,16 +36,22 @@ public class FileParserService {
             throw new IllegalArgumentException("File is empty: " + filename);
         }
 
+        log.info("parseFile starting - filename: {}, size: {} bytes", filename, file.getSize());
+
         String lower = filename.toLowerCase(Locale.ROOT);
+        List<Map<String, Object>> result;
         if (lower.endsWith(".csv")) {
-            return parseCSV(file);
+            result = parseCSV(file);
         } else if (lower.endsWith(".json")) {
-            return parseJSON(file);
+            result = parseJSON(file);
         } else if (lower.endsWith(".xml")) {
-            return parseXML(file);
+            result = parseXML(file);
         } else {
             throw new IllegalArgumentException("Unsupported file format: " + filename);
         }
+        
+        log.info("parseFile completed - filename: {}, returned {} rows", filename, result.size());
+        return result;
     }
 
     private List<Map<String, Object>> parseCSV(MultipartFile file) throws Exception {
@@ -55,24 +61,37 @@ public class FileParserService {
              BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
              CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT.withHeader())) {
 
+            log.info("CSV Parser started - headers: {}", csvParser.getHeaderMap());
+            int recordCount = 0;
             for (CSVRecord record : csvParser) {
                 Map<String, Object> row = new LinkedHashMap<>(record.toMap());
                 rows.add(row);
+                recordCount++;
+                log.debug("CSV Record {}: {}", recordCount, row);
             }
+            log.info("CSV parsing completed - total records parsed: {}", recordCount);
         }
 
+        log.info("parseCSV result: {} rows returned", rows.size());
         return rows;
     }
 
     private List<Map<String, Object>> parseJSON(MultipartFile file) throws Exception {
         try (InputStream in = file.getInputStream()) {
             Object parsed = jsonMapper.readValue(in, Object.class);
+            log.debug("JSON parsed object type: {}", parsed.getClass().getSimpleName());
 
             if (parsed instanceof List) {
                 //noinspection unchecked
-                return (List<Map<String, Object>>) parsed;
+                List<Map<String, Object>> result = (List<Map<String, Object>>) parsed;
+                log.info("Parsed JSON array with {} items", result.size());
+                for (int i = 0; i < result.size(); i++) {
+                    log.debug("JSON item {}: {}", i, result.get(i));
+                }
+                return result;
             } else if (parsed instanceof Map) {
                 //noinspection unchecked
+                log.info("Parsed JSON object as single item: {}", parsed);
                 return List.of((Map<String, Object>) parsed);
             } else {
                 throw new IllegalArgumentException("JSON must be an array or object");

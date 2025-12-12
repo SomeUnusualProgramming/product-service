@@ -29,50 +29,86 @@ import java.util.Objects;
 @Transactional
 public class ProductService {
 
-    private static final Logger logger = LoggerFactory.getLogger(ProductService.class);
+    private static final Logger logger =
+        LoggerFactory.getLogger(ProductService.class);
     private final ProductRepository productRepository;
     private final ProductProducer productProducer;
     private final ProductMapper productMapper;
 
-    public ProductService(ProductRepository productRepository,
-                          ProductProducer productProducer,
-                          ProductMapper productMapper) {
+    public ProductService(final ProductRepository productRepository,
+                          final ProductProducer productProducer,
+                          final ProductMapper productMapper) {
         this.productRepository = productRepository;
         this.productProducer = productProducer;
         this.productMapper = productMapper;
     }
 
+    /**
+     * Retrieves all current products for the current tenant.
+     *
+     * @return list of products for the current tenant
+     */
     public List<Product> getAllProducts() {
         String tenantId = TenantProvider.getCurrentTenantId();
         return productRepository.findCurrentProductsByTenant(tenantId);
     }
 
-    public Product getProductById(Long id) {
+    /**
+     * Retrieves a product by its ID for the current tenant.
+     *
+     * @param id the product ID
+     * @return the product if found
+     * @throws ProductNotFoundException if the product is not found
+     */
+    public Product getProductById(final Long id) {
         String tenantId = TenantProvider.getCurrentTenantId();
         return productRepository.findByIdAndTenantId(id, tenantId)
             .orElseThrow(() -> new ProductNotFoundException(id));
     }
 
-    public List<Product> getProductHistory(Long id) {
+    /**
+     * Retrieves the history of a product.
+     *
+     * @param id the original product ID
+     * @return list of product history entries
+     */
+    public List<Product> getProductHistory(final Long id) {
         String tenantId = TenantProvider.getCurrentTenantId();
-        List<Product> history = productRepository.findByOriginalProductIdAndTenantIdOrderByEventTimeDesc(id, tenantId);
-        logger.info(AppConstants.Logger.HISTORY_RETRIEVED, id, history.size());
+        List<Product> history =
+            productRepository
+                .findByOriginalProductIdAndTenantIdOrderByEventTimeDesc(
+                    id, tenantId);
+        logger.info(AppConstants.Logger.HISTORY_RETRIEVED, id,
+            history.size());
         return history;
     }
 
-    public Page<Product> searchAndFilterProducts(ProductFilterDTO filter) {
+    /**
+     * Searches and filters products based on the provided filter criteria.
+     *
+     * @param filter the product filter criteria
+     * @return a page of filtered products
+     */
+    public Page<Product> searchAndFilterProducts(final ProductFilterDTO filter) {
         String tenantId = TenantProvider.getCurrentTenantId();
-        
+
         Sort sort = SortBuilder.buildSort(filter);
-        Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
-        
+        Pageable pageable = PageRequest.of(filter.getPage(),
+            filter.getSize(), sort);
+
         return productRepository.findAll(
-            ProductSpecification.buildSearchSpecification(filter, tenantId), 
+            ProductSpecification.buildSearchSpecification(filter, tenantId),
             pageable
         );
     }
 
-    public Product createProduct(Product product) {
+    /**
+     * Creates a new product with the CREATED event type.
+     *
+     * @param product the product to create
+     * @return the created product
+     */
+    public Product createProduct(final Product product) {
         product.setEventType(AppConstants.Event.TYPE_CREATED);
         product.setEventTime(LocalDateTime.now());
 
@@ -81,67 +117,109 @@ public class ProductService {
         return saved;
     }
 
-    public Product updateProduct(Long id, ProductRequestDTO updatedProductDTO) {
+    /**
+     * Updates an existing product for the current tenant.
+     *
+     * @param id the product ID
+     * @param updatedProductDTO the updated product data
+     * @return the updated product
+     * @throws ProductNotFoundException if the product is not found
+     */
+    public Product updateProduct(final Long id,
+                                  final ProductRequestDTO updatedProductDTO) {
         String tenantId = TenantProvider.getCurrentTenantId();
-        return productRepository.findByIdAndTenantId(id, tenantId).map(existing -> {
-            Product history = HistoryBuilder.createHistory(existing, AppConstants.Event.TYPE_UPDATED);
-            productRepository.save(history);
+        return productRepository.findByIdAndTenantId(id, tenantId)
+            .map(existing -> {
+                Product history = HistoryBuilder.createHistory(existing,
+                    AppConstants.Event.TYPE_UPDATED);
+                productRepository.save(history);
 
-            productMapper.updateProductFromDTO(updatedProductDTO, existing);
-            Product saved = productRepository.save(existing);
+                productMapper.updateProductFromDTO(updatedProductDTO,
+                    existing);
+                Product saved = productRepository.save(existing);
 
-            productProducer.sendMessage(saved);
-            return saved;
-        }).orElseThrow(() -> new ProductNotFoundException(id));
+                productProducer.sendMessage(saved);
+                return saved;
+            }).orElseThrow(() -> new ProductNotFoundException(id));
     }
 
-    public void deleteProduct(Long id) {
+    /**
+     * Deletes a product for the current tenant.
+     *
+     * @param id the product ID
+     * @throws ProductNotFoundException if the product is not found
+     */
+    public void deleteProduct(final Long id) {
         String tenantId = TenantProvider.getCurrentTenantId();
         Product product = productRepository.findByIdAndTenantId(id, tenantId)
             .orElseThrow(() -> new ProductNotFoundException(id));
-        
-        Product history = HistoryBuilder.createHistory(product, AppConstants.Event.TYPE_DELETED);
+
+        Product history = HistoryBuilder.createHistory(product,
+            AppConstants.Event.TYPE_DELETED);
         productRepository.save(history);
 
         productRepository.deleteById(id);
         productProducer.sendMessage(history);
     }
 
-    public void processProductEvent(Product productEvent) {
+    /**
+     * Processes a product event based on its event type.
+     *
+     * @param productEvent the product event to process
+     */
+    public void processProductEvent(final Product productEvent) {
         String tenantId = productEvent.getTenantId();
         if (tenantId == null) {
             tenantId = TenantProvider.getTenantIdOrNull();
         }
-        
+
         switch (productEvent.getEventType()) {
             case AppConstants.Event.TYPE_CREATED -> {
-                logger.info(AppConstants.Logger.HANDLING_CREATED, productEvent.getId());
+                logger.info(AppConstants.Logger.HANDLING_CREATED,
+                    productEvent.getId());
                 productRepository.save(productEvent);
             }
             case AppConstants.Event.TYPE_UPDATED -> {
-                logger.info(AppConstants.Logger.HANDLING_UPDATED, productEvent.getId());
+                logger.info(AppConstants.Logger.HANDLING_UPDATED,
+                    productEvent.getId());
                 if (tenantId != null) {
-                    productRepository.findByIdAndTenantId(productEvent.getId(), tenantId).ifPresent(existing -> {
-                        existing.setName(productEvent.getName());
-                        existing.setDescription(productEvent.getDescription());
-                        existing.setCategory(productEvent.getCategory());
-                        existing.setPrice(productEvent.getPrice());
-                        existing.setStockQuantity(productEvent.getStockQuantity());
-                        productRepository.save(existing);
-                    });
+                    productRepository
+                        .findByIdAndTenantId(productEvent.getId(), tenantId)
+                        .ifPresent(existing -> {
+                            existing.setName(productEvent.getName());
+                            existing.setDescription(
+                                productEvent.getDescription());
+                            existing.setCategory(
+                                productEvent.getCategory());
+                            existing.setPrice(productEvent.getPrice());
+                            existing.setStockQuantity(
+                                productEvent.getStockQuantity());
+                            productRepository.save(existing);
+                        });
                 }
             }
             case AppConstants.Event.TYPE_DELETED -> {
-                logger.info(AppConstants.Logger.HANDLING_DELETED, productEvent.getId());
+                logger.info(AppConstants.Logger.HANDLING_DELETED,
+                    productEvent.getId());
                 productRepository.deleteById(productEvent.getId());
             }
-            default -> logger.warn(AppConstants.Logger.UNKNOWN_EVENT_TYPE, productEvent.getEventType());
+            default -> logger.warn(
+                AppConstants.Logger.UNKNOWN_EVENT_TYPE,
+                productEvent.getEventType());
         }
     }
 
-    public void handleProductEventFromKafka(Product productEvent, boolean processEvent) {
+    /**
+     * Handles a product event from Kafka, optionally processing it.
+     *
+     * @param productEvent the product event from Kafka
+     * @param processEvent whether to process the event
+     */
+    public void handleProductEventFromKafka(final Product productEvent,
+                                            final boolean processEvent) {
         try {
-            Objects.requireNonNull(productEvent, "Product event cannot be null");
+            Objects.requireNonNull(productEvent,
+                "Product event cannot be null");
 
             productEvent.setEventTime(LocalDateTime.now());
 

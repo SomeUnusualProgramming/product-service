@@ -26,7 +26,7 @@ import static org.hamcrest.Matchers.*;
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
-@EmbeddedKafka(partitions = 1, brokerProperties = { "listeners=PLAINTEXT://localhost:9092", "port=9092" })
+@EmbeddedKafka(partitions = 1)
 public class ProductControllerIntegrationTest {
 
     @Autowired

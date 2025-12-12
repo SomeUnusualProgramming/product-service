@@ -648,6 +648,35 @@ if (product == null) {
 }
 ```
 
+**Documentation & Comments**:
+- Public methods require Javadoc comments
+- Method parameters should be documented in `@param` tags
+- Return values documented in `@return` tags
+- Exceptions documented in `@throws` tags
+- Complex logic requires inline comments
+- Example:
+```java
+/**
+ * Retrieves a product by its ID for the current tenant.
+ *
+ * @param id the product ID
+ * @return the product if found
+ * @throws ProductNotFoundException if the product is not found
+ */
+public Product getProductById(final Long id) {
+    String tenantId = TenantProvider.getCurrentTenantId();
+    return productRepository.findByIdAndTenantId(id, tenantId)
+        .orElseThrow(() -> new ProductNotFoundException(id));
+}
+```
+
+**Code Style**:
+- Max line length: 120 characters
+- Method parameters: Use `final` keyword for immutability
+- Import order: static, then standard Java, then Spring/application packages
+- No trailing whitespace
+- File must end with newline
+
 ---
 
 ## Useful Commands

@@ -132,6 +132,20 @@ spring:
     bootstrap-servers: localhost:9092
 ```
 
+## Code Quality Standards
+
+The project enforces high code quality through:
+- **SpotBugs**: Detects potential bugs and code smells
+- **Checkstyle**: Enforces consistent code style and formatting
+- **JaCoCo**: Measures code coverage (target: ≥80%)
+
+**Requirements for all public methods**:
+- Javadoc comments with `@param`, `@return`, `@throws` documentation
+- Use `final` keyword on method parameters
+- Max line length: 120 characters
+- No trailing whitespace
+- Files must end with newline
+
 ## Testing & Quality
 
 ```bash
@@ -193,8 +207,15 @@ docker-compose down -v
 ## Development Workflow
 
 1. **Create feature branch**: `git checkout -b feature/description`
-2. **Make changes** following code conventions
+2. **Make changes** following code conventions:
+   - Add Javadoc to public methods
+   - Use `final` keyword on parameters
+   - Keep lines ≤120 characters
+   - No trailing whitespace
 3. **Run tests & checks**: `mvn clean verify`
+   - All tests must pass
+   - No SpotBugs or Checkstyle violations
+   - Code coverage ≥80% for new code
 4. **Commit with clear messages**: `git commit -m "description"`
 5. **Push and create pull request**
 
