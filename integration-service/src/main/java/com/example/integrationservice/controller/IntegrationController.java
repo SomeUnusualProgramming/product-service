@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,11 +26,13 @@ public class IntegrationController {
     private final AiMappingService aiMappingService;
     private final FileParserService fileParserService;
     private final BatchMappingService batchMappingService;
+    private final ObjectMapper objectMapper;
 
-    public IntegrationController(AiMappingService aiMappingService, FileParserService fileParserService, BatchMappingService batchMappingService) {
+    public IntegrationController(AiMappingService aiMappingService, FileParserService fileParserService, BatchMappingService batchMappingService, ObjectMapper objectMapper) {
         this.aiMappingService = aiMappingService;
         this.fileParserService = fileParserService;
         this.batchMappingService = batchMappingService;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping({"", "/"})
@@ -203,7 +206,7 @@ public class IntegrationController {
                     .totalRows(rows.size())
                     .build();
 
-            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(dto);
+            String json = objectMapper.writeValueAsString(dto);
             logger.info("File upload completed successfully");
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
         } catch (Exception e) {
@@ -232,10 +235,11 @@ public class IntegrationController {
                     rows,
                     sourceSchema,
                     targetSchema,
-                    mappingRules
+                    mappingRules,
+                    new HashMap<>()
             );
 
-            String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(result);
+            String json = objectMapper.writeValueAsString(result);
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
         } catch (Exception e) {
             logger.error("Batch mapping error", e);
@@ -244,6 +248,91 @@ public class IntegrationController {
                     LocalDateTime.now().toString());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON).body(err);
         }
+    }
+
+    @PostMapping(value = "/batch/auto-map", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> autoMapFiles(
+            @RequestParam MultipartFile input_file,
+            @RequestParam MultipartFile output_file
+    ) {
+        try {
+            logger.info("Auto-mapping started - input: {}, output: {}", 
+                    input_file.getOriginalFilename(), output_file.getOriginalFilename());
+
+            List<Map<String, Object>> inputRows = fileParserService.parseFile(input_file);
+            List<Map<String, Object>> outputRows = fileParserService.parseFile(output_file);
+            
+            logger.info("Parsed input file: {} rows, output file: {} rows", inputRows.size(), outputRows.size());
+
+            Map<String, String> inputSchema = fileParserService.detectSchema(inputRows);
+            Map<String, String> outputSchema = fileParserService.detectSchema(outputRows);
+
+            logger.info("Input schema: {}, Output schema: {}", inputSchema.keySet(), outputSchema.keySet());
+
+            String inputSchemaJson = objectMapper.writeValueAsString(inputSchema);
+            String outputSchemaJson = objectMapper.writeValueAsString(outputSchema);
+
+            String generatedMappingRules = aiMappingService.generateMappingRules(
+                    inputSchemaJson,
+                    outputSchemaJson
+            );
+
+            logger.info("Generated mapping rules: {}", generatedMappingRules);
+
+            Map<String, Object> targetSampleData = outputRows.isEmpty() ? new HashMap<>() : outputRows.get(0);
+            
+            BatchMappingResultDto result = batchMappingService.mapBatch(
+                    input_file.getOriginalFilename(),
+                    inputRows,
+                    inputSchema,
+                    outputSchemaJson,
+                    generatedMappingRules,
+                    targetSampleData
+            );
+
+            logger.info("Batch mapping result: total={}, successful={}, failed={}, mapped_data_size={}",
+                    result.getTotalRowsProcessed(),
+                    result.getSuccessfulMappings(),
+                    result.getFailedMappings(),
+                    result.getMappedData() != null ? result.getMappedData().size() : 0);
+
+            result.setUnmappedFields(findUnmappedFields(outputSchema.keySet(), generatedMappingRules));
+            logger.info("Unmapped fields: {}", result.getUnmappedFields());
+            result.setManualMappingConfig(new java.util.HashMap<>());
+            result.setAllInputRows(inputRows);
+
+            String json = objectMapper.writeValueAsString(result);
+            
+            logger.debug("Auto-mapping response: {}", json);
+            
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
+
+        } catch (Exception e) {
+            logger.error("Auto-mapping error", e);
+            String err = String.format("{\"error\":\"%s\",\"timestamp\":\"%s\"}",
+                    e.getMessage() != null ? e.getMessage().replaceAll("\"", "\\\"") : "An error occurred during auto-mapping",
+                    LocalDateTime.now().toString());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON).body(err);
+        }
+    }
+
+    private List<String> findUnmappedFields(java.util.Set<String> outputFields, String mappingRules) {
+        List<String> unmapped = new ArrayList<>();
+        for (String field : outputFields) {
+            // Check if the field appears in mapping rules in the format "to [field_name]" or "to '[field_name]'"
+            // This handles mapping rules like: "- Map 'source_field' to 'target_field'"
+            String lowerMappingRules = mappingRules.toLowerCase();
+            String fieldPattern1 = "to '" + field.toLowerCase() + "'";
+            String fieldPattern2 = "to \"" + field.toLowerCase() + "\"";
+            String fieldPattern3 = "to " + field.toLowerCase();
+            
+            if (!lowerMappingRules.contains(fieldPattern1) && 
+                !lowerMappingRules.contains(fieldPattern2) && 
+                !lowerMappingRules.contains(fieldPattern3)) {
+                unmapped.add(field);
+            }
+        }
+        return unmapped;
     }
 
     @GetMapping("/batch/{batchId}/download")

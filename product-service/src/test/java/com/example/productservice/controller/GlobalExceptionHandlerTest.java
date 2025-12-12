@@ -1,15 +1,17 @@
-// language: java
 package com.example.productservice.controller;
 
 import com.example.productservice.kafka.ProductProducer;
 import com.example.productservice.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -20,6 +22,7 @@ import static org.hamcrest.Matchers.*;
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
+@EmbeddedKafka(partitions = 1)
 public class GlobalExceptionHandlerTest {
 
     @Autowired
@@ -28,8 +31,16 @@ public class GlobalExceptionHandlerTest {
     @Autowired
     private ProductRepository productRepository;
 
-    @MockBean
+    @Autowired
     private ProductProducer productProducer;
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        ProductProducer productProducer() {
+            return Mockito.mock(ProductProducer.class);
+        }
+    }
 
     @BeforeEach
     void setUp() {

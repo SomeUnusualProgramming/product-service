@@ -38,6 +38,55 @@
             margin-bottom: 20px;
         }
 
+        .unmapped-fields {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .unmapped-fields h3 {
+            color: #856404;
+            margin-bottom: 15px;
+        }
+
+        .unmapped-field-item {
+            background: white;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border-left: 3px solid #ffc107;
+        }
+
+        .unmapped-field-item strong {
+            color: #333;
+        }
+
+        .unmapped-field-item .field-name {
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .field-mapping-config {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 3px;
+        }
+
+        .field-mapping-config select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
         .panel {
             background: white;
             border-radius: 8px;
@@ -392,23 +441,31 @@
             </div>
 
             <div class="panel">
-                <h2>Step 2: Configure Mapping</h2>
+                <h2>Step 2: Upload Output Schema</h2>
 
-                <div class="form-group">
-                    <label>Target Schema (JSON)</label>
-                    <textarea id="targetSchema" placeholder='{"product_id": "UUID", "product_name": "String", "unit_price": "BigDecimal", "available_stock": "Integer"}'></textarea>
+                <div class="drop-zone" id="dropZone2" onclick="document.getElementById('fileInput2').click()">
+                    <div class="drop-zone-icon">📥</div>
+                    <div class="drop-zone-text">Drag & drop output file here</div>
+                    <div class="drop-zone-hint">Supported: CSV, JSON, XML (only fields/schema)</div>
                 </div>
 
-                <div class="form-group">
-                    <label>Mapping Rules</label>
-                    <textarea id="mappingRules" placeholder='- Map id to product_id
-- Map name to product_name
-- Map price to unit_price
-- Map stock to available_stock'></textarea>
+                <input type="file" id="fileInput2" accept=".csv,.json,.xml" onchange="handleFileSelect2(event)">
+
+                <div class="file-info" id="fileInfo2">
+                    <h3>📊 Output Schema Detected</h3>
+                    <table class="schema-table" id="schemaTable2">
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody id="schemaBody2"></tbody>
+                    </table>
                 </div>
 
-                <div class="button-group">
-                    <button class="btn-primary" id="mapButton" onclick="startBatchMapping()" disabled>🚀 Start Mapping</button>
+                <div class="button-group" style="margin-top: 20px;">
+                    <button class="btn-primary" id="mapButton" onclick="startAutoMapping()" disabled>🤖 Auto-Map & Transform</button>
                 </div>
 
                 <div class="progress-container" id="progressContainer">
@@ -442,6 +499,7 @@
                     </div>
                 </div>
 
+                <div id="unmappedContainer"></div>
                 <div id="errorContainer"></div>
 
                 <div class="export-buttons" id="exportButtons" style="display: none;">
@@ -453,11 +511,14 @@
     </div>
 
     <script>
-        let uploadedFile = null;
-        let fileData = null;
+        let inputFile = null;
+        let inputFileData = null;
+        let outputFile = null;
+        let outputFileData = null;
         let mappingResult = null;
 
         const dropZone = document.getElementById('dropZone');
+        const dropZone2 = document.getElementById('dropZone2');
 
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -477,6 +538,24 @@
             }
         });
 
+        dropZone2.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone2.classList.add('dragover');
+        });
+
+        dropZone2.addEventListener('dragleave', () => {
+            dropZone2.classList.remove('dragover');
+        });
+
+        dropZone2.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone2.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile2(files[0]);
+            }
+        });
+
         function handleFileSelect(event) {
             const files = event.target.files;
             if (files.length > 0) {
@@ -484,9 +563,16 @@
             }
         }
 
+        function handleFileSelect2(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                handleFile2(files[0]);
+            }
+        }
+
         function handleFile(file) {
-            uploadedFile = file;
-            showStatus('loading', '<span class="loading-spinner"></span> Analyzing file...');
+            inputFile = file;
+            showStatus('loading', '<span class="loading-spinner"></span> Analyzing input file...');
 
             const formData = new FormData();
             formData.append('file', file);
@@ -497,13 +583,11 @@
             })
             .then(response => {
                 if (!response.ok) {
-                    // Handle error responses - try to parse as JSON, fallback to text
                     return response.text().then(text => {
                         try {
                             const data = JSON.parse(text);
                             throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
                         } catch (e) {
-                            // If not JSON, just use the status
                             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
                     });
@@ -511,14 +595,55 @@
                 return response.json();
             })
             .then(data => {
-                fileData = data;
+                inputFileData = data;
                 displayFileInfo(data);
-                document.getElementById('mapButton').disabled = false;
-                showStatus('success', `✅ File analyzed: ${data.total_rows} rows detected`);
+                checkBothFilesReady();
+                showStatus('success', `✅ Input file analyzed: ${data.total_rows} rows detected`);
             })
             .catch(error => {
                 showStatus('error', `❌ Error: ${error.message}`);
             });
+        }
+
+        function handleFile2(file) {
+            outputFile = file;
+            showStatus('loading', '<span class="loading-spinner"></span> Analyzing output schema...');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/api/integration/file/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        try {
+                            const data = JSON.parse(text);
+                            throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+                        } catch (e) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                outputFileData = data;
+                displayFileInfo2(data);
+                checkBothFilesReady();
+                showStatus('success', `✅ Output schema analyzed: ${Object.keys(data.detected_schema).length} fields detected`);
+            })
+            .catch(error => {
+                showStatus('error', `❌ Error: ${error.message}`);
+            });
+        }
+
+        function checkBothFilesReady() {
+            if (inputFileData && outputFileData) {
+                document.getElementById('mapButton').disabled = false;
+            }
         }
 
         function displayFileInfo(data) {
@@ -539,41 +664,41 @@
             document.getElementById('totalRows').textContent = data.total_rows;
         }
 
-        function startBatchMapping() {
-            if (!uploadedFile || !fileData) {
-                showStatus('error', '❌ Please upload a file first');
+        function displayFileInfo2(data) {
+            document.getElementById('fileInfo2').classList.add('show');
+
+            const schemaBody2 = document.getElementById('schemaBody2');
+            schemaBody2.innerHTML = '';
+            for (const [field, type] of Object.entries(data.detected_schema)) {
+                const row = `<tr><td>${field}</td><td><strong>${type}</strong></td></tr>`;
+                schemaBody2.innerHTML += row;
+            }
+        }
+
+        function startAutoMapping() {
+            if (!inputFile || !inputFileData || !outputFile || !outputFileData) {
+                showStatus('error', '❌ Please upload both input and output files');
                 return;
             }
 
-            const targetSchema = document.getElementById('targetSchema').value;
-            const mappingRules = document.getElementById('mappingRules').value;
-
-            if (!targetSchema || !mappingRules) {
-                showStatus('error', '❌ Please fill in target schema and mapping rules');
-                return;
-            }
-
-            showStatus('loading', '<span class="loading-spinner"></span> Processing batch mapping...');
+            showStatus('loading', '<span class="loading-spinner"></span> Auto-mapping and transforming data...');
             document.getElementById('progressContainer').classList.add('show');
 
             const formData = new FormData();
-            formData.append('file', uploadedFile);
-            formData.append('target_schema', targetSchema);
-            formData.append('mapping_rules', mappingRules);
+            formData.append('input_file', inputFile);
+            formData.append('output_file', outputFile);
 
-            fetch('/api/integration/batch/map', {
+            fetch('/api/integration/batch/auto-map', {
                 method: 'POST',
                 body: formData
             })
             .then(response => {
                 if (!response.ok) {
-                    // Handle error responses - try to parse as JSON, fallback to text
                     return response.text().then(text => {
                         try {
                             const data = JSON.parse(text);
                             throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
                         } catch (e) {
-                            // If not JSON, just use the status
                             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
                     });
@@ -581,9 +706,17 @@
                 return response.json();
             })
             .then(data => {
+                console.log('Mapping result received:', data);
+                console.log('Mapped data items:', data.mapped_data ? data.mapped_data.length : 0);
+                console.log('Unmapped fields:', data.unmapped_fields);
+                
+                if (!data.mapped_data || data.mapped_data.length === 0) {
+                    console.warn('Warning: No mapped data in response. Total rows: ' + data.total_rows_processed + ', Successful: ' + data.successful_mappings);
+                }
+                
                 mappingResult = data;
                 displayResults(data);
-                showStatus('success', `✅ Batch mapping completed! ${data.successful_mappings}/${data.total_rows_processed} successful`);
+                showStatus('success', `✅ Auto-mapping completed! ${data.successful_mappings}/${data.total_rows_processed} successful (${data.mapped_data ? data.mapped_data.length : 0} items exported)`);
             })
             .catch(error => {
                 showStatus('error', `❌ Error: ${error.message}`);
@@ -601,14 +734,59 @@
             document.getElementById('statFailed').textContent = data.failed_mappings;
             document.getElementById('statTime').textContent = data.processing_time_ms;
 
+            // Debug output schema fields vs unmapped fields
+            console.log('Output schema fields:', Object.keys(outputFileData.detected_schema || {}));
+            console.log('Unmapped fields:', data.unmapped_fields);
+
+            if (data.unmapped_fields && data.unmapped_fields.length > 0) {
+                const unmappedHtml = `
+                    <div class="unmapped-fields">
+                        <h3>⚠️ Unmapped Output Fields (${data.unmapped_fields.length})</h3>
+                        <p style="color: #666; margin-bottom: 15px;">These fields could not be automatically mapped. You can optionally configure them:</p>
+                        ${data.unmapped_fields.map(field => `
+                            <div class="unmapped-field-item">
+                                <strong>Output Field:</strong> <span class="field-name">${field}</span>
+                                <div class="field-mapping-config">
+                                    <label style="margin: 0; font-size: 0.9em;">Map from input field (optional):</label>
+                                    <select id="map_${field}" onchange="updateFieldMapping('${field}', this.value)">
+                                        <option value="">-- Skip this field --</option>
+                                        ${Object.keys(inputFileData.detected_schema).map(inputField => 
+                                            `<option value="${inputField}">${inputField}</option>`
+                                        ).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                document.getElementById('unmappedContainer').innerHTML = unmappedHtml;
+            } else {
+                console.log('No unmapped fields to display');
+                document.getElementById('unmappedContainer').innerHTML = '';
+            }
+
             if (data.errors && data.errors.length > 0) {
                 const errorHtml = `
                     <div class="error-list">
-                        <strong>⚠️ Errors found:</strong>
+                        <strong>⚠️ Processing errors (${data.errors.length}):</strong>
                         ${data.errors.map(e => `<div class="error-item">Row ${e.row_index}: ${e.error}</div>`).join('')}
                     </div>
                 `;
                 document.getElementById('errorContainer').innerHTML = errorHtml;
+            }
+        }
+
+        function updateFieldMapping(outputField, inputField) {
+            if (mappingResult) {
+                if (!mappingResult.manual_mapping_config) {
+                    mappingResult.manual_mapping_config = {};
+                }
+                if (inputField) {
+                    mappingResult.manual_mapping_config[outputField] = inputField;
+                } else {
+                    delete mappingResult.manual_mapping_config[outputField];
+                }
+                console.log('Updated manual mapping config:', mappingResult.manual_mapping_config);
             }
         }
 
@@ -619,30 +797,86 @@
         }
 
         function exportData(format) {
-            if (!mappingResult) return;
+            if (!mappingResult) {
+                showStatus('error', '❌ No mapping result available');
+                return;
+            }
+            
+            if (!mappingResult.mapped_data || mappingResult.mapped_data.length === 0) {
+                showStatus('error', '❌ No mapped data to export. Check if all rows were successfully mapped.');
+                return;
+            }
 
+            let dataToExport = applyManualMappings(mappingResult);
             let content, filename, type;
 
             if (format === 'json') {
-                content = JSON.stringify(mappingResult.mapped_data, null, 2);
+                content = JSON.stringify(dataToExport, null, 2);
                 filename = 'mapped-data.json';
                 type = 'application/json';
             } else if (format === 'csv') {
-                content = convertToCSV(mappingResult.mapped_data);
+                content = convertToCSV(dataToExport);
                 filename = 'mapped-data.csv';
                 type = 'text/csv';
             }
+            
+            if (!content) {
+                showStatus('error', '❌ Failed to generate export content');
+                return;
+            }
 
             downloadFile(content, filename, type);
+            showStatus('success', `✅ Exported ${dataToExport.length} rows to ${format.toUpperCase()}`);
+        }
+
+        function applyManualMappings(result) {
+            if (!result.manual_mapping_config || Object.keys(result.manual_mapping_config).length === 0) {
+                return result.mapped_data;
+            }
+
+            if (!result.all_input_rows) {
+                console.warn('Manual mapping config exists but all_input_rows not available');
+                return result.mapped_data;
+            }
+
+            const enrichedData = [];
+            
+            for (let i = 0; i < result.mapped_data.length; i++) {
+                const mappedRow = result.mapped_data[i];
+                const inputRow = i < result.all_input_rows.length ? result.all_input_rows[i] : null;
+                
+                const enrichedRow = { ...mappedRow };
+                
+                if (inputRow) {
+                    for (const [outputField, inputField] of Object.entries(result.manual_mapping_config)) {
+                        if (inputField && inputRow.hasOwnProperty(inputField)) {
+                            enrichedRow[outputField] = inputRow[inputField];
+                            console.log(`Applied manual mapping: ${outputField} <- ${inputField} (row ${i})`);
+                        }
+                    }
+                }
+                
+                enrichedData.push(enrichedRow);
+            }
+            
+            return enrichedData;
         }
 
         function convertToCSV(data) {
-            if (data.length === 0) return '';
+            if (!data || data.length === 0) {
+                console.warn('convertToCSV: No data provided');
+                return '';
+            }
+            
+            console.log('convertToCSV: Processing ' + data.length + ' rows');
 
             const headers = Object.keys(data[0]);
+            console.log('CSV Headers: ' + headers.join(', '));
+            
             const csv = [headers.join(',')];
 
-            for (const row of data) {
+            for (let i = 0; i < data.length; i++) {
+                const row = data[i];
                 const values = headers.map(h => {
                     const value = row[h];
                     return `"${value != null ? String(value).replace(/"/g, '""') : ''}"`;
@@ -650,6 +884,7 @@
                 csv.push(values.join(','));
             }
 
+            console.log('CSV generation complete: ' + csv.length + ' lines (including header)');
             return csv.join('\n');
         }
 
