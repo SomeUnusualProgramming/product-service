@@ -24,4 +24,7 @@ public class MappingRequestDto {
 
     @JsonProperty("mapping_rules")
     private String mappingRules;
+
+    @JsonProperty("target_sample_data")
+    private String targetSampleData;
 }

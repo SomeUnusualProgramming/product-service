@@ -36,6 +36,15 @@ public class BatchMappingResultDto {
     @JsonProperty("errors")
     private List<Map<String, String>> errors;
 
+    @JsonProperty("unmapped_fields")
+    private List<String> unmappedFields;
+
+    @JsonProperty("manual_mapping_config")
+    private Map<String, String> manualMappingConfig;
+
+    @JsonProperty("all_input_rows")
+    private List<Map<String, Object>> allInputRows;
+
     @JsonProperty("processing_time_ms")
     private Long processingTimeMs;
 
